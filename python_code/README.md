@@ -1,4 +1,4 @@
-# Bayesian Blocks for Time Series Analysis
+# Bayesian Blocks Python Implementation
 
 ## Overview
 
