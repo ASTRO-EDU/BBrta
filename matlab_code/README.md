@@ -1,4 +1,4 @@
-# Bayesian Blocks Implementation
+# Bayesian Blocks MATLAB Implementation
 
 This directory contains an implementation of the **Bayesian Blocks** algorithm. The algorithm is used to identify change points in time series data, allowing for an adaptive binning of the data based on its underlying structure. This implementation is based on the methodology described by Scargle et al. in their paper, which can be accessed [here](https://arxiv.org/abs/1207.5578).
 
