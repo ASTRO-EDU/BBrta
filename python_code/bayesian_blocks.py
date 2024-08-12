@@ -138,6 +138,18 @@ class BBlocks:
         self.data_in['t'] = t
         self.data_in['sigma'] = sigma
         self.data_in['dt'] = dt
+    
+    # TODO: Add exposure to this objects? 
+    # def set_exposures(self, exp):
+    #     """
+    #     Store the exposures of data.
+
+    #     Parameters:
+    #     -----------
+    #     exp: array-like
+    #         How long the instrument observes and accumulates photons.
+    #     """
+    #     self.data_in['exposures'] = exp
         
     # Methods for setting output data (data_out)
     def set_data_cells(self, data_cells):
