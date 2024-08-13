@@ -116,7 +116,7 @@ class AGILE_BBlocks:
         
 
     def head_detections(self, n:int = 5):
-         """
+        """
         Return the first `n` rows of the detections DataFrame.
 
         Parameters:
@@ -162,7 +162,7 @@ class AGILE_BBlocks:
                                         data_cells=False, mean_blocks=False)
 
     def bayesian_blocks(self, fitness='events', p0=None, gamma=None):
-         """
+        """
         Compute the Bayesian blocks using the given parameters and plot the result.
 
         Parameters:
