@@ -161,7 +161,7 @@ class AGILE_BBlocks:
             self.resbblocks.plot_blocks(t_delta=False, edge_points=False, 
                                         data_cells=False, mean_blocks=False)
 
-    def bayesian_blocks(self, fitness='events', p0=None, gamma=None):
+    def bayesian_blocks(self, fitness='events', p0=None, gamma=None, useerror=False):
         """
         Compute the Bayesian blocks using the given parameters and plot the result.
 
@@ -173,9 +173,12 @@ class AGILE_BBlocks:
             Prior on the number of blocks (optional).
         gamma : float
             Regularization parameter (optional).
+        useerror : Bool
+            Flag for using error for computing blocks or not.
         """
         # Compute the Bayesian blocks with the given parameters and plot the result.
-        self.resbblocks = bayesian_blocks(self.t_c, self.x, sigma=self.sigma, fitness=fitness, p0=p0, gamma=gamma)
+        sigma = self.sigma if useerror else None
+        self.resbblocks = bayesian_blocks(self.t_c, self.x, sigma=sigma, fitness=fitness, p0=p0, gamma=gamma)
         if self.datamode == 2:
             self.resbblocks.plot_blocks(t_delta=True, edge_points=True, data_cells=True, mean_blocks=True)
         elif self.datamode == 3:
