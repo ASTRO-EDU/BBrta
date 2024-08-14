@@ -3,7 +3,7 @@ import numpy as np
 import os
 from astropy.time import Time
 
-from agile_bblocks.bayesian_blocks import BBlocks, bayesian_blocks
+from bayesian_blocks import BBlocks, bayesian_blocks
 
 class AGILE_BBlocks:
     """
