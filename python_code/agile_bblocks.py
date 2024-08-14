@@ -192,7 +192,7 @@ class AGILE_BBlocks:
         if self.datamode == 2:
             self.resbblocks.plot_blocks(t_delta=True, edge_points=True, data_cells=True, mean_blocks=True)
         elif self.datamode == 3:
-            self.resbblocks.plot_blocks(t_delta=False, edge_points=False, data_cells=True, mean_blocks=False)
+            self.resbblocks.plot_blocks(t_delta=False, edge_points=True, data_cells=True, mean_blocks=False)
     
     def plot_blocks_with_rate(self):
         """
