@@ -191,6 +191,17 @@ class AGILE_BBlocks:
         elif self.datamode == 3:
             self.resbblocks.plot_blocks(t_delta=False, edge_points=False, data_cells=True, mean_blocks=False)
     
+    def plot_blocks_with_rate(self):
+        """
+        Plot the results of the Bayesian Blocks analysis, including both the light curve with 
+        block means and a rate vector showing changes over time.
+        """
+        # Plot the data using the BBlocks object based on the data mode.
+        if self.datamode == 2:
+            self.resbblocks.plot_blocks_with_rate(t_delta=True, edge_points=True, data_cells=True, mean_blocks=True)
+        elif self.datamode == 3:
+            self.resbblocks.plot_blocks_with_rate(t_delta=False, edge_points=True, data_cells=True, mean_blocks=True)
+
     def __mjd_to_unix(self, mjd):
         """
         Convert Modified Julian Date (MJD) to Unix time relative to the AGILE epoch.
