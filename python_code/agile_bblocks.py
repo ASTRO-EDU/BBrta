@@ -176,7 +176,10 @@ class AGILE_BBlocks:
         """
         # Compute the Bayesian blocks with the given parameters and plot the result.
         self.resbblocks = bayesian_blocks(self.t_c, self.x, sigma=self.sigma, fitness=fitness, p0=p0, gamma=gamma)
-        self.resbblocks.plot_blocks()
+        if self.datamode == 2:
+            self.resbblocks.plot_blocks(t_delta=True, edge_points=True, data_cells=True, mean_blocks=True)
+        elif self.datamode == 3:
+            self.resbblocks.plot_blocks(t_delta=False, edge_points=False, data_cells=True, mean_blocks=False)
 
     def plot_bblocks(self):
         """
@@ -184,9 +187,9 @@ class AGILE_BBlocks:
         """
         # Plot the Bayesian blocks with appropriate time delta setting based on data mode.
         if self.datamode == 2:
-            self.resbblocks.plot_blocks(t_delta=True)
+            self.resbblocks.plot_blocks(t_delta=True, edge_points=True, data_cells=True, mean_blocks=True)
         elif self.datamode == 3:
-            self.resbblocks.plot_blocks(t_delta=False)
+            self.resbblocks.plot_blocks(t_delta=False, edge_points=False, data_cells=True, mean_blocks=False)
     
     def __mjd_to_unix(self, mjd):
         """
