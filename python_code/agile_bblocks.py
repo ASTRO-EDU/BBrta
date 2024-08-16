@@ -201,9 +201,9 @@ class AGILE_BBlocks:
         """
         # Plot the data using the BBlocks object based on the data mode.
         if self.datamode == 2:
-            self.resbblocks.plot_blocks_with_rate(t_delta=True, edge_points=True, data_cells=True, mean_blocks=True)
+            self.resbblocks.plot_blocks_with_rate(t_delta=True, edge_points=True, data_cells=True, mean_blocks=True, sum_blocks=False)
         elif self.datamode == 3:
-            self.resbblocks.plot_blocks_with_rate(t_delta=False, edge_points=True, data_cells=True, mean_blocks=True)
+            self.resbblocks.plot_blocks_with_rate(t_delta=False, edge_points=True, data_cells=True, mean_blocks=False, sum_blocks=True)
 
     def __mjd_to_unix(self, mjd):
         """
@@ -225,3 +225,10 @@ class AGILE_BBlocks:
         agile_epoch = Time('2004-01-01T00:00:00', scale='utc')
         # Return the difference in seconds from the AGILE epoch.
         return mjd_date.unix - agile_epoch.unix 
+    
+    def get_data_out(self):
+        return self.resbblocks.get_data_out()
+    
+    def get_data_in(self):
+        return self.resbblocks.get_data_in()
+    

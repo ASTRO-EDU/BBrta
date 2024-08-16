@@ -136,6 +136,7 @@ class BBlocks:
         """
         self.data_in['x'] = x
         self.data_in['t'] = t
+        self.data_in['N_t'] = len(t)
         self.data_in['sigma'] = sigma
         self.data_in['dt'] = dt
     
@@ -163,6 +164,7 @@ class BBlocks:
             where the data within each segment is assumed to be statistically homogeneous.
         """
         self.data_out['data_cells'] = data_cells
+        self.data_out['N_data_cells'] = len(data_cells)
     
     def set_ncp_prior(self, ncp_prior):
         """
@@ -187,6 +189,7 @@ class BBlocks:
             change in the statistical properties of the data, leading to a new segment or block.
         """
         self.data_out['change_points'] = change_points
+        self.data_out['N_change_points'] = len(change_points)
         
     def set_edge_points(self, edge_points):
         """
@@ -212,17 +215,64 @@ class BBlocks:
         """
         self.data_out['mean_blocks'] = mean_blocks
         
-    def set_rate_vec(self, rate_vec):
+    def set_sum_blocks(self, sum_blocks):
         """
-        Store the rate vector for each block in the 'data_out' dictionary.
+        Store the sum values for each block in the 'data_out' dictionary.
 
         Parameters:
         -----------
-        rate_vec : array-like
+        sum_blocks : array-like
+            Sum of the data within each identified block or segment, 
+            used to summarize the data within each segment.
+        """
+        self.data_out['sum_blocks'] = sum_blocks
+        
+    def set_dt_blocks(self, dt_blocks):
+        """
+        Store the dt values for each block as difference between edges in the 'data_out' dictionary.
+
+        Parameters:
+        -----------
+        dt_blocks : array-like
+           Size in time of each identified block or segment, 
+            used to summarize the data within each segment.
+        """
+        self.data_out['dt_blocks'] = dt_blocks
+
+    def set_dt_events(self, dt_events):
+        """
+        Store the dt values for each block as difference between data points in the 'data_out' dictionary.
+
+        Parameters:
+        -----------
+        dt_events : array-like
+           Size in time of the data points (difference between first and last) of each identified block or segment, 
+            used to summarize the data within each segment.
+        """
+        self.data_out['dt_events'] = dt_events
+        
+    def set_blockrate(self, blockrate_vec):
+        """
+        Store the block rate vector for each block in the 'data_out' dictionary.
+
+        Parameters:
+        -----------
+        blockrate_vec : array-like
             Represents the rate of change or event rate within each block, often important 
             in applications like time series analysis or signal detection.
         """
-        self.data_out['rate_vec'] = rate_vec
+        self.data_out['blockrate'] = blockrate_vec
+        
+    def set_eventrate(self, eventrate_vec):
+        """
+        Store the block rate vector for each block in the 'data_out' dictionary as difference in time between first and last event.
+
+        Parameters:
+        -----------
+        eventrate_vec : array-like
+            Represents the rate of change or event rate within each block as difference in time between first and last event., often important in applications like time series analysis or signal detection.
+        """
+        self.data_out['eventrate'] = eventrate_vec
 
     # Get methods
     def get_data_in(self):
@@ -252,7 +302,7 @@ class BBlocks:
         return self.data_out
 
     # Plot methods
-    def plot_blocks(self, t_delta=True, edge_points=True, data_cells=True, mean_blocks=True, alg='custom'):
+    def plot_blocks(self, t_delta=True, edge_points=True, data_cells=True, mean_blocks=True, sum_blocks=False, alg='custom'):
         """
         Plot the results of the Bayesian Blocks analysis, including the light curve, 
         detected blocks, and optionally the mean value of each block.
@@ -269,6 +319,8 @@ class BBlocks:
             Default is True.
         mean_blocks : bool, optional
             If True, plots the mean value within each identified block. Default is True.
+        sum_blocks : bool, optional
+            If True, plots the sum within each identified block. Default is False.
         alg : str, optional
             The algorithm source, which determines the color of the plot lines. Supported options 
             are 'custom', 'astropy', and 'matlab'. Default is 'custom'.
@@ -330,6 +382,17 @@ class BBlocks:
                 if i_edge < len(self.data_out['edge_points']) and t >= self.data_out['edge_points'][i_edge]:
                     i_edge += 1
             plt.step(self.data_out['data_cells'], means, color='purple', label='blocks mean')
+
+        # Plot the mean values of the blocks if specified
+        if sum_blocks:
+            sumb = []
+            i_edge = 0
+            # Calculate sum for each block
+            for t in self.data_out['data_cells']:
+                sumb.append(self.data_out['sum_blocks'][i_edge])
+                if i_edge < len(self.data_out['edge_points']) and t >= self.data_out['edge_points'][i_edge]:
+                    i_edge += 1
+            plt.step(self.data_out['data_cells'], sumb, color='red', label='blocks sum')
         
         # Label the axes
         plt.xlabel('t_c')
@@ -347,7 +410,7 @@ class BBlocks:
         # plt.show()
 
               
-    def plot_blocks_with_rate(self, t_delta=True, edge_points=True, data_cells=True, mean_blocks=True, alg='custom'):
+    def plot_blocks_with_rate(self, t_delta=True, edge_points=True, data_cells=True, mean_blocks=True, sum_blocks=False, alg='custom'):
         """
         Plot the results of the Bayesian Blocks analysis, including both the light curve with 
         block means and a rate vector showing changes over time.
@@ -364,6 +427,8 @@ class BBlocks:
             Default is True.
         mean_blocks : bool, optional
             If True, plots the mean value within each identified block. Default is True.
+        sum_blocks : bool, optional
+            If True, plots the sum within each identified block. Default is True.
         alg : str, optional
             The algorithm source, which determines the color of the plot lines. Supported options 
             are 'custom', 'astropy', and 'matlab'. Default is 'custom'.
@@ -410,19 +475,28 @@ class BBlocks:
         axs[0].errorbar(self.data_in['t'], self.data_in['x'], 
                         xerr=xerr, yerr=yerr, fmt="o", color='tab:blue', 
                         label='light curve')
-        if mean_blocks:
+        if mean_blocks or sum_blocks:
             means = []
+            sumb = []
             rates = []
+            rateblocks = []
             i_edge = 0
             # Calculate mean and rate for each block
             for t in self.data_out['data_cells']:
                 means.append(self.data_out['mean_blocks'][i_edge])
-                rate_this = self.data_out['rate_vec'][i_edge]
+                sumb.append(self.data_out['sum_blocks'][i_edge])
+                rate_this = self.data_out['eventrate'][i_edge]
                 rates.append(rate_this if rate_this != np.inf else 0)
+                rate_this = self.data_out['blockrate'][i_edge]
+                rateblocks.append(rate_this if rate_this != np.inf else 0)
                 
                 if i_edge < len(self.data_out['edge_points']) and t >= self.data_out['edge_points'][i_edge]:
                     i_edge += 1
+                    
+        if mean_blocks:
             axs[0].step(self.data_out['data_cells'], means, color='purple', label='blocks mean')
+        if sum_blocks:
+            axs[0].step(self.data_out['data_cells'], sumb, color='red', label='blocks sum')
         axs[0].set_xlabel('t_c')
         axs[0].set_ylabel('Count')
         axs[0].legend()
@@ -439,7 +513,8 @@ class BBlocks:
             axs[1].vlines(self.data_out['data_cells'], 0, max(rates), 
                           label='Data cell', color='gray', ls='--', 
                           linewidth=0.5)
-        axs[1].step(self.data_out['data_cells'], rates, color='tab:orange', label='rate_vec')
+        axs[1].step(self.data_out['data_cells'], rates, color='tab:orange', label='eventrate')
+        axs[1].step(self.data_out['data_cells'], rateblocks, color='tab:blue', label='eventblock', ls='--')
         axs[1].set_xlabel('t_c')
         axs[1].set_ylabel('Rate')
         axs[1].legend()
@@ -860,10 +935,13 @@ class FitnessFunc:
         num_changepoints = len(change_points)
         num_blocks = num_changepoints + 1;
         
-        rate_vec    = np.zeros( num_blocks )
+        blockrate_vec    = np.zeros( num_blocks )
+        eventrate_vec    = np.zeros( num_blocks )
         mean_blocks = np.zeros( num_blocks )
+        sum_blocks  = np.zeros( num_blocks )
         num_vec     = np.zeros( num_blocks )
-        dt_vec      = np.zeros( num_blocks )
+        dt_event_vec      = np.zeros( num_blocks )
+        dt_block_vec      = np.zeros( num_blocks )
         tt_1_vec    = np.zeros( num_blocks )
         tt_2_vec    = np.zeros( num_blocks )
         
@@ -877,15 +955,34 @@ class FitnessFunc:
             # Get the data 
             block_vec = x[ii_1:ii_2].copy()
             tt_vec = t[ii_1:ii_2].copy()
+            #print(tt_vec)
+            edge_vec = data_cells[ii_1:ii_2+1].copy()
+            #print(edge_vec)
                         
             # Compute mean_blocks
             mean_blocks[i] = block_vec.mean()
             
-            # Compute rate_vec
-            rate_vec[i] = block_vec.sum()/(tt_vec[-1]-tt_vec[0])
+            # Compute sum_blocks
+            sum_blocks[i] = block_vec.sum()
+            
+            # Compute dt_eventl_vec, i.e. the difference between first and last time of data into blocks
+            dt_event_vec[i] = (tt_vec[-1]-tt_vec[0])
+            
+            # Compute dt_vec of blocks
+            dt_block_vec[i] = (edge_vec[-1]-edge_vec[0])
+            
+            # Compute rate_vec of blocks based on size of blocks
+            blockrate_vec[i] = sum_blocks[i]/dt_block_vec[i]
+            
+            # Compute rate_vec of blocks based on difference between first and last event of data
+            eventrate_vec[i] = sum_blocks[i]/dt_event_vec[i]
                     
-        self.bblocks.set_rate_vec(rate_vec)
+        self.bblocks.set_blockrate(blockrate_vec)
+        self.bblocks.set_eventrate(eventrate_vec)
         self.bblocks.set_mean_blocks(mean_blocks)
+        self.bblocks.set_sum_blocks(sum_blocks)
+        self.bblocks.set_dt_events(dt_event_vec)
+        self.bblocks.set_dt_blocks(dt_block_vec)
         
         return self.bblocks
 
