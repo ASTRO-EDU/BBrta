@@ -36,9 +36,9 @@ class BaseBBlocks:
             self.df_detections.index = self.df_detections["flare_id"]
             # Keep only the start and stop times (in MJD format).
             self.df_detections = self.df_detections[["mjd_start", "mjd_stop"]]
-            # Convert the MJD times to Unix time relative to the AGILE epoch.
-            self.df_detections['mjd_start'] = self.df_detections['mjd_start'].apply(self.__mjd_to_unix)
-            self.df_detections['mjd_stop'] = self.df_detections['mjd_stop'].apply(self.__mjd_to_unix)
+            # Convert the MJD times to TT time relative to the AGILE epoch.
+            #self.df_detections['mjd_start'] = self.df_detections['mjd_start'].apply(self.__mjd_to_tt)
+            #self.df_detections['mjd_stop'] = self.df_detections['mjd_stop'].apply(self.__mjd_to_tt)
 
     def select_event(self, *args, **kwargs):
         """
@@ -146,25 +146,3 @@ class BaseBBlocks:
     def get_data_in(self):
         return self.resbblocks.get_data_in() if self.resbblocks else None
     
-    def __mjd_to_unix(self, mjd):
-        """
-        Convert Modified Julian Date (MJD) to Unix time relative to the AGILE epoch.
-
-        Parameters:
-        -----------
-        mjd : float
-            The Modified Julian Date to convert.
-        
-        Returns:
-        --------
-        float
-            The Unix time relative to the AGILE epoch.
-        """
-        # Convert Modified Julian Date (MJD) to Unix time relative to the AGILE epoch.
-        mjd_date = Time(mjd, format='mjd', scale='utc')
-        # Define the AGILE epoch date.
-        agile_epoch = Time('2004-01-01T00:00:00', scale='utc')
-        # Return the difference in seconds from the AGILE epoch.
-        return mjd_date.unix - agile_epoch.unix 
-
-

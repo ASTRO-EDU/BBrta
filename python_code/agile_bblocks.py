@@ -25,7 +25,7 @@ class AGILE_BBlocks(BaseBBlocks):
         """
         super().__init__(detections_csv_path)
     
-    def select_event(self, ap_path:str=None, ph_path:str=None, rate_path:str=None, event_id: str='E05', rate=False, ratefactor=0):
+    def select_event(self, ap_path:str=None, ph_path:str=None, rate_path:str=None, event_id: str=None, tstart=None, tstop=None, rate=False, ratefactor=0):
         """
         Select an event by specifying its ID and data paths.
 
@@ -36,7 +36,11 @@ class AGILE_BBlocks(BaseBBlocks):
         ph_path : str
             The path to the TTE data file.
         event_id : str
-            The ID of the event to select (default is 'E05').
+            The ID of the event to select (default is None).
+        tstart 
+            Time start in MJD. This is used if event_id is None
+        tstop 
+            Time stop in MJD. This is used if event_id is Non
         rate:
             For ap_path. Enable the evaluation of the rate multiplied for a ratefactor and converted into integer. If ratefactor == 0 use the mean of the exposure
         ratefactor: scale a rate to int. Usualy set it as the a mean effective area * dt
@@ -60,14 +64,21 @@ class AGILE_BBlocks(BaseBBlocks):
         # Store the event ID.
         self.event_id = event_id
         # Extract the start and stop times for the selected event.
-        estart = self.df_detections.loc[self.event_id]["mjd_start"]
-        estop = self.df_detections.loc[self.event_id]["mjd_stop"]
-        
+        if event_id is not None:
+            estart = self.df_detections.loc[self.event_id]["mjd_start"]
+            estop = self.df_detections.loc[self.event_id]["mjd_stop"]
+        else:
+            estart = tstart
+            estop = tstop
+
         if self.filemode == 2 or self.filemode == 3:
             print("Binned light AGILE AP curve selected...")
             # Load the binned light curve data from the CSV file.
             df_ap = pd.read_csv(ap_path, delim_whitespace=True, header=None)
             df_ap.columns = ['lwtime', 'uptime', 'exposure', 'counts']
+            #convert in MJD
+            df_ap['lwtime'] = df_ap['lwtime'].apply(self.__tt_to_mjd)
+            df_ap['uptime'] = df_ap['uptime'].apply(self.__tt_to_mjd)
             # Filter the data to only include rows within the event time range.
             self.df_event = df_ap[(df_ap["lwtime"] >= estart) & (df_ap["uptime"] <= estop)]
             # Exclude rows with zero exposure.
@@ -148,3 +159,40 @@ class AGILE_BBlocks(BaseBBlocks):
             self.resbblocks.set_data(self.x, self.t_c, self.sigma, self.t_delta, exp=self.exp)
             
 
+    def __mjd_to_tt(self, mjd):
+        """
+        Convert Modified Julian Date (MJD) to Unix time relative to the AGILE epoch.
+
+        Parameters:
+        -----------
+        mjd : float
+            The Modified Julian Date to convert.
+        
+        Returns:
+        --------
+        float
+            The Unix time relative to the AGILE epoch.
+        """
+        # Convert Modified Julian Date (MJD) to Unix time relative to the AGILE epoch.
+        mjd_date = Time(mjd, format='mjd', scale='utc')
+        # Define the AGILE epoch date.
+        agile_epoch = Time('2004-01-01T00:00:00', scale='utc')
+        # Return the difference in seconds from the AGILE epoch.
+        return mjd_date.unix - agile_epoch.unix 
+
+
+    def __tt_to_mjd(self, tt_seconds):
+        """
+        Convert Terrestrial Time (TT) seconds to Modified Julian Date (MJD).
+
+        Parameters:
+        - tt_seconds (float): Number of seconds elapsed since a reference epoch in Terrestrial Time (TT).
+
+        Returns:
+        - mjd (float): The resulting Modified Julian Date (MJD).
+        """
+
+
+        time_unix = np.array(tt_seconds) + 1072915200
+        t = Time(time_unix, format="unix")
+        return t.mjd

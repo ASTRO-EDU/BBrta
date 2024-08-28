@@ -4,7 +4,7 @@ from astropy.time import Time
 from bayesian_blocks import BBlocks, bayesian_blocks
 import os
 from base_bblocks import BaseBBlocks 
-
+from datetime import datetime, timedelta
 
 class FERMI_BBlocks(BaseBBlocks):
     """
@@ -25,7 +25,7 @@ class FERMI_BBlocks(BaseBBlocks):
         """
         super().__init__(detections_csv_path)
     
-    def select_event(self, ap_path:str=None, mle_path:str=None, event_id: str=None, estart=None, estop=None, rate=False, ratefactor=0):
+    def select_event(self, ap_path:str=None, mle_path:str=None, event_id: str=None, tstart=None, tstop=None, rate=False, ratefactor=0):
         """
         Select an event by specifying its ID and data paths.
 
@@ -37,9 +37,9 @@ class FERMI_BBlocks(BaseBBlocks):
             The path to the MLE binned light curve data file.
         event_id : str
             The ID of the event to select (default is None).
-        estart 
+        tstart 
             Time start in MJD. This is used if event_id is None
-        estop 
+        tstop 
             Time stop in MJD. This is used if event_id is None
         rate:
             For ap_path. Enable the evaluation of the rate multiplied for a ratefactor and converted into integer. If ratefactor == 0 use the mean of the exposure
@@ -63,7 +63,10 @@ class FERMI_BBlocks(BaseBBlocks):
         if event_id is not None:
             estart = self.df_detections.loc[self.event_id]["mjd_start"]
             estop = self.df_detections.loc[self.event_id]["mjd_stop"]
-        
+        else:
+            estart = tstart
+            estop = tstop
+
         if self.filemode == 2 or self.filemode == 3:
             print("Binned light FERMI AP curve selected...")
             #aperture.pl modified with additional counts column
@@ -72,7 +75,7 @@ class FERMI_BBlocks(BaseBBlocks):
 
             # Load the binned light curve data from the CSV file.
             df_ap = pd.read_csv(ap_path, delim_whitespace=True, header=None)
-            df_ap.columns = ['time', 'rate', 'rerr', 'timedel', 'prerr', , 'exposure', 'counts']
+            df_ap.columns = ['time', 'rate', 'rerr', 'timedel', 'prerr', 'exposure', 'counts']
             # Apply the convert function to each element in the 'time' column
             df_ap['time'] = df_ap['time'].apply(self.fermi_seconds_to_mjd)
             # Filter the data to only include rows within the event time range.
@@ -83,6 +86,7 @@ class FERMI_BBlocks(BaseBBlocks):
             print(f"Total number of photons (no zero-exposure): {self.df_event['counts'].sum()}")
             self.t_c = self.df_event['time'].to_numpy()
             self.exp = self.df_event['exposure'].to_numpy()
+            self.t_delta = 0
             if self.filemode == 2:
                 self.x = self.df_event['counts'].to_numpy()
                 self.sigma = np.sqrt(self.x)  # Standard deviation as square root of counts
