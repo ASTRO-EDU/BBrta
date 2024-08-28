@@ -14,6 +14,13 @@
 # streamlining the workflow and enabling a more comprehensive examination 
 # of the data within the AGILE RTA framework.
 
+#datamode=1 -> class event, unbinned data: t -> for each t, x is set to 1 - Fitness function eq 19 - Statistics: Bernoulli
+#datamode=2 -> class event, binned data: t, x -> x contains an integer number (the value of the bins) - Fitness function eq 19 - statistics Poisson
+#datamode=2 -> class RegularEvent, binned data: t, x -> x can be only 0 or 1 (no duplicated time teg) - Fitness function Eq. C23 
+#datamode=3 -> class PointMeasures - Fitness function eq. 41 from Scargle 2013 - statistics Gaussian
+
+#NB: for class event, if p0 is passed, the ncp_prior is computed as function p0_prior (see eq. 21 in Scargle (2013)), for all cases and datamodes. Be carefull, this should be applicable only for datamode=1 (check in the paper)
+
 """Bayesian Blocks for Time Series Analysis.
 
 Bayesian Blocks for Time Series Analysis
@@ -99,7 +106,7 @@ class BBlocks:
         Parameters:
         -----------
         p0 : float
-            The threshold that determines the sensitivity of change point detection.
+            The threshold that determines the sensitivity of change point detection. The ncp_prior is calculated using p0 and  eq. 21 in Scargle (2013)
         gamma : float
             The regularization parameter that influences the complexity penalty, controlling the 
             trade-off between model fit and complexity in the Bayesian Blocks algorithm.
@@ -119,7 +126,7 @@ class BBlocks:
         """
         self.data_in['fitness'] = fitness
         
-    def set_data(self, x, t, sigma, dt):
+    def set_data(self, x, t, sigma, dt, exp=None):
         """
         Store the observed data and related parameters in the 'data_in' dictionary.
 
@@ -136,9 +143,11 @@ class BBlocks:
         """
         self.data_in['x'] = x
         self.data_in['t'] = t
-        self.data_in['N_t'] = len(t)
+        self.data_in['N'] = len(t)
         self.data_in['sigma'] = sigma
         self.data_in['dt'] = dt
+        if exp is not None:
+            self.data_in['exp'] = exp
     
     # TODO: Add exposure to this objects? 
     # def set_exposures(self, exp):
@@ -166,7 +175,7 @@ class BBlocks:
         self.data_out['data_cells'] = data_cells
         self.data_out['N_data_cells'] = len(data_cells)
     
-    def set_ncp_prior(self, ncp_prior):
+    def set_ncp_prior(self, ncp_prior, N):
         """
         Store the prior on the number of change points (NCP) in the 'data_out' dictionary.
 
@@ -177,6 +186,7 @@ class BBlocks:
             penalty on the introduction of additional change points.
         """
         self.data_out['ncp_prior'] = ncp_prior
+        self.data_out['N'] = N
     
     def set_change_points(self, change_points):
         """
@@ -302,7 +312,7 @@ class BBlocks:
         return self.data_out
 
     # Plot methods
-    def plot_blocks(self, t_delta=True, edge_points=True, data_cells=True, mean_blocks=True, sum_blocks=False, alg='custom'):
+    def plot_blocks(self, t_delta=True, y_err=True, edge_points=True, data_cells=True, mean_blocks=True, sum_blocks=False, alg='custom'):
         """
         Plot the results of the Bayesian Blocks analysis, including the light curve, 
         detected blocks, and optionally the mean value of each block.
@@ -347,10 +357,16 @@ class BBlocks:
         # Determine error bars: Use dt for time and sqrt of counts for Poisson error if t_delta is True
         if t_delta:
             xerr = self.data_in['dt']
-            yerr = np.sqrt(self.data_in['x'])
+            if y_err:
+                #yerr = np.sqrt(self.data_in['x'])
+                yerr = self.data_in['sigma']
+            else:
+                yerr = np.zeros_like(self.data_in['x'])
         else:
             xerr = np.zeros_like(self.data_in['x'])
             yerr = np.zeros_like(self.data_in['x'])
+              
+
         
         # Create the figure for plotting
         plt.figure(figsize=(20, 6))
@@ -410,7 +426,7 @@ class BBlocks:
         # plt.show()
 
               
-    def plot_blocks_with_rate(self, t_delta=True, edge_points=True, data_cells=True, mean_blocks=True, sum_blocks=False, alg='custom'):
+    def plot_blocks_with_rate(self, t_delta=True, y_err=True, edge_points=True, data_cells=True, mean_blocks=True, sum_blocks=False, alg='custom'):
         """
         Plot the results of the Bayesian Blocks analysis, including both the light curve with 
         block means and a rate vector showing changes over time.
@@ -455,10 +471,15 @@ class BBlocks:
         # Determine error bars: Use dt for time and sqrt of counts for Poisson error if t_delta is True
         if t_delta:
             xerr = self.data_in['dt']
-            yerr = np.sqrt(self.data_in['x'])
+            if y_err:
+                #yerr = np.sqrt(self.data_in['x'])
+                yerr = self.data_in['sigma']
+            else:
+                yerr = np.zeros_like(self.data_in['x'])
         else:
             xerr = np.zeros_like(self.data_in['x'])
             yerr = np.zeros_like(self.data_in['x'])
+
 
         # Create the figure and two subplots
         fig, axs = plt.subplots(2, 1, figsize=(20, 12))
@@ -513,8 +534,8 @@ class BBlocks:
             axs[1].vlines(self.data_out['data_cells'], 0, max(rates), 
                           label='Data cell', color='gray', ls='--', 
                           linewidth=0.5)
-        axs[1].step(self.data_out['data_cells'], rates, color='tab:orange', label='eventrate')
-        axs[1].step(self.data_out['data_cells'], rateblocks, color='tab:blue', label='eventblock', ls='--')
+        axs[1].step(self.data_out['data_cells'], rates, color='tab:orange', label='eventrate', ls='--')
+        axs[1].step(self.data_out['data_cells'], rateblocks, color='tab:blue', label='eventblock')
         axs[1].set_xlabel('t_c')
         axs[1].set_ylabel('Rate')
         axs[1].legend()
@@ -695,6 +716,7 @@ class FitnessFunc:
         self.ncp_prior = ncp_prior
         self.bblocks = BBlocks()
         self.bblocks.set_arguments(p0, gamma)
+        self.verbose = False
 
 
  
@@ -848,12 +870,14 @@ class FitnessFunc:
                                 0.5 * (t[1:] + t[:-1]), 
                                 t[-1:]])
 
-        np.savetxt('output.txt', edges, fmt='%f')
+        #np.savetxt('output.txt', edges, fmt='%f')
         data_cells = edges
         # Store data_cells
         self.bblocks.set_data_cells(data_cells)
         
         block_length = t[-1] - edges
+        if self.verbose == True:
+            print(block_length)
         # arrays to store the best configuration
         N = len(t)
         best = np.zeros(N, dtype=float)
@@ -864,12 +888,14 @@ class FitnessFunc:
             ncp_prior = self.compute_ncp_prior(N)
         else:
             ncp_prior = self.ncp_prior
-        self.bblocks.set_ncp_prior(ncp_prior)
+        self.bblocks.set_ncp_prior(ncp_prior, N)
 
         # ----------------------------------------------------------------
         # Start with first data cell; add one cell at each iteration
         # ----------------------------------------------------------------
         for R in range(N):
+            if self.verbose == True:
+                print("### R", R, block_length[: (R + 1)], block_length[R + 1])
             # Compute fit_vec : fitness of putative last block (end at R)
             kwds = {}
 
@@ -912,10 +938,17 @@ class FitnessFunc:
                 i_max = np.argmax(A_R)
             last[R] = i_max
             best[R] = A_R[i_max]
+            if self.verbose == True:
+                print("A_R ",A_R)
+                print("best ", best)
+                print("last ", last)
+                print("i_max ", i_max)
         
         # ----------------------------------------------------------------
         # Now find changepoints by iteratively peeling off the last block
         # ----------------------------------------------------------------
+        if self.verbose == True:
+            print("CHANGE POINTS")
         change_points = np.zeros(N, dtype=int)
         # NOTE: Replaced the final block of the function to follow the
         # behavior of the MATLAB implementation, avoiding to return also  
@@ -924,7 +957,10 @@ class FitnessFunc:
         change_points = []
         while index > 0:
             change_points.insert(0, index)
+            if self.verbose == True:
+                print(index, last[index - 1])
             index = last[index - 1]
+            
         # Store egde_points and change_points
         self.bblocks.set_change_points(change_points)
         self.bblocks.set_edge_points(edges[change_points])
@@ -1023,6 +1059,8 @@ class Events(FitnessFunc):
     #     log_args[log_args <= 0] = 1e-3
     #     return N_k * (np.log(log_args))
     def fitness(self, N_k, T_k):
+
+        #print("T_K N_K for fitness: ", T_k, N_k)
         # eq. 19 from Scargle 2013
         log_args_Tk = T_k.copy()
         log_args_Tk[T_k <= 0] = np.inf
@@ -1031,6 +1069,7 @@ class Events(FitnessFunc):
 
  
     def validate_input(self, t, x, sigma):
+        
         t, x, sigma = super().validate_input(t, x, sigma)
         if x is not None and np.any(x % 1 > 0):
             raise ValueError("x must be integer counts for fitness='events'")
