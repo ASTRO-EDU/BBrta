@@ -67,6 +67,9 @@ class FERMI_BBlocks(BaseBBlocks):
             estart = tstart
             estop = tstop
 
+        self.data_cells = None
+        self.exp = None
+
         if self.filemode == 2 or self.filemode == 3:
             print("Binned light FERMI AP curve selected...")
             #aperture.pl modified with additional counts column
@@ -85,8 +88,16 @@ class FERMI_BBlocks(BaseBBlocks):
             print(f"Total number of rows (no zero-exposure): {len(self.df_event)}")
             print(f"Total number of photons (no zero-exposure): {self.df_event['counts'].sum()}")
             self.t_c = self.df_event['time'].to_numpy()
+            self.data_cells = None
             self.exp = self.df_event['exposure'].to_numpy()
-            self.t_delta = 0
+            self.t_delta = self.df_event['timedel'].to_numpy() / 86400 * 2
+            self.dt = min(self.t_delta)
+            
+            #calculate custom data_cells
+            self.t_i = self.t_c - self.t_delta/2
+            self.t_f = self.t_c + self.t_delta/2
+            self.data_cells = np.append(self.t_i, self.t_f[-1])
+
             if self.filemode == 2:
                 self.x = self.df_event['counts'].to_numpy()
                 self.sigma = np.sqrt(self.x)  # Standard deviation as square root of counts
@@ -108,10 +119,7 @@ class FERMI_BBlocks(BaseBBlocks):
         
         # Initialize the BBlocks object and set the data for Bayesian blocks analysis.
         self.resbblocks = BBlocks()
-        if self.filemode != 2:
-            self.resbblocks.set_data(self.x, self.t_c, self.sigma, self.t_delta)
-        if self.filemode == 2:
-            self.resbblocks.set_data(self.x, self.t_c, self.sigma, self.t_delta, exp=self.exp)
+        self.resbblocks.set_data(self.x, self.t_c, self.sigma, self.dt, datamode=self.datamode, t_delta=self.t_delta, exp=self.exp, data_cells = self.data_cells)
             
     def fermi_seconds_to_mjd(self, fermi_seconds):
         """

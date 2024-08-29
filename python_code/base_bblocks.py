@@ -92,7 +92,7 @@ class BaseBBlocks:
         if self.datamode == 2:
             self.resbblocks.plot_blocks(t_delta=True, y_err=yerr, edge_points=False, 
                                         data_cells=False, mean_blocks=False)
-        elif self.datamode == 3:
+        elif self.datamode == 1:
             self.resbblocks.plot_blocks(t_delta=False, y_err=yerr, edge_points=False, 
                                         data_cells=False, mean_blocks=False)
 
@@ -113,10 +113,10 @@ class BaseBBlocks:
         """
         # Compute the Bayesian blocks with the given parameters and plot the result.
         sigma = self.sigma if useerror else None
-        self.resbblocks = bayesian_blocks(self.t_c, self.x, sigma=sigma, fitness=fitness, p0=p0, gamma=gamma)
+        self.resbblocks = bayesian_blocks(self.t_c, self.x, sigma=sigma, fitness=fitness, input_data_cells=self.data_cells, p0=p0, gamma=gamma)
         if self.datamode == 2:
             self.resbblocks.plot_blocks(t_delta=True, edge_points=True, data_cells=True, mean_blocks=True)
-        elif self.datamode == 3:
+        elif self.datamode == 1:
             self.resbblocks.plot_blocks(t_delta=False, edge_points=True, data_cells=True, mean_blocks=False)
 
     def plot_bblocks(self):
@@ -126,7 +126,7 @@ class BaseBBlocks:
         # Plot the Bayesian blocks with appropriate time delta setting based on data mode.
         if self.datamode == 2:
             self.resbblocks.plot_blocks(t_delta=True, edge_points=True, data_cells=True, mean_blocks=True)
-        elif self.datamode == 3:
+        elif self.datamode == 1:
             self.resbblocks.plot_blocks(t_delta=False, edge_points=True, data_cells=True, mean_blocks=False)
     
     def plot_blocks_with_rate(self):
@@ -137,7 +137,7 @@ class BaseBBlocks:
         # Plot the data using the BBlocks object based on the data mode.
         if self.datamode == 2:
             self.resbblocks.plot_blocks_with_rate(t_delta=True, edge_points=True, data_cells=True, mean_blocks=True, sum_blocks=False)
-        elif self.datamode == 3:
+        elif self.datamode == 1:
             self.resbblocks.plot_blocks_with_rate(t_delta=False, edge_points=True, data_cells=True, mean_blocks=False, sum_blocks=True)
     
     def get_data_out(self):

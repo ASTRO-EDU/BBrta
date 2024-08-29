@@ -126,7 +126,7 @@ class BBlocks:
         """
         self.data_in['fitness'] = fitness
         
-    def set_data(self, x, t, sigma, dt, exp=None):
+    def set_data(self, x, t, sigma, dt, datamode=None, t_delta=None, data_cells=None, exp=None):
         """
         Store the observed data and related parameters in the 'data_in' dictionary.
 
@@ -136,30 +136,30 @@ class BBlocks:
             Data points or observed values.
         t : array-like
             Time or position associated with each data point.
+        t_delta : array-like
+            Delta time or position associated with each data point.
+        edges : array-like
+            Edges already calculated by an external algorithm.
         sigma : float
             Uncertainty or standard deviation of the data points.
         dt : float
             Time resolution or spacing between data points.
+        datamode : int
+            1 TTE
+            2 LC 
         """
         self.data_in['x'] = x
         self.data_in['t'] = t
+
         self.data_in['N'] = len(t)
         self.data_in['sigma'] = sigma
         self.data_in['dt'] = dt
-        if exp is not None:
-            self.data_in['exp'] = exp
-    
-    # TODO: Add exposure to this objects? 
-    # def set_exposures(self, exp):
-    #     """
-    #     Store the exposures of data.
 
-    #     Parameters:
-    #     -----------
-    #     exp: array-like
-    #         How long the instrument observes and accumulates photons.
-    #     """
-    #     self.data_in['exposures'] = exp
+        self.data_in['t_delta'] = t_delta
+
+        self.data_in['datamode'] = datamode
+        self.data_in['exp'] = exp
+        self.data_in['input_data_cells'] = data_cells
         
     # Methods for setting output data (data_out)
     def set_data_cells(self, data_cells):
@@ -369,7 +369,7 @@ class BBlocks:
 
         
         # Create the figure for plotting
-        plt.figure(figsize=(20, 6))
+        plt.figure(figsize=(10, 6))
         
         # Plot the edge points if specified
         if edge_points:
@@ -482,7 +482,7 @@ class BBlocks:
 
 
         # Create the figure and two subplots
-        fig, axs = plt.subplots(2, 1, figsize=(20, 12))
+        fig, axs = plt.subplots(2, 1, figsize=(10, 10))
 
         # First subplot: Light curve with block means
         if edge_points:
@@ -556,8 +556,8 @@ class BBlocks:
 
 __all__ = ["FitnessFunc", "Events", "RegularEvents", "PointMeasures", "bayesian_blocks"]
  
-def bayesian_blocks(t, x=None, sigma=None, fitness="events", **kwargs):
-    r"""Compute optimal segmentation of data with Scargle's Bayesian Blocks.
+def bayesian_blocks(t, x=None, sigma=None, input_data_cells=None, fitness="events", **kwargs):
+    """Compute optimal segmentation of data with Scargle's Bayesian Blocks.
 
     This is a flexible implementation of the Bayesian Blocks algorithm
     described in Scargle 2013 [1]_.
@@ -669,7 +669,7 @@ def bayesian_blocks(t, x=None, sigma=None, fitness="events", **kwargs):
     else:
         raise ValueError("fitness parameter not understood")
 
-    return fitfunc.fit(t, x, sigma)
+    return fitfunc.fit(t, x, sigma, input_data_cells)
 
 
 
@@ -721,6 +721,8 @@ class FitnessFunc:
 
  
     def validate_input(self, t, x=None, sigma=None):
+        #TODOAB this and the input routines must be merged
+        #TODOAB sort also sigma, t_delta, input edges
         """Validate inputs to the model.
 
         Parameters
@@ -838,7 +840,7 @@ class FitnessFunc:
 
 
  
-    def fit(self, t, x=None, sigma=None) -> BBlocks:
+    def fit(self, t, x=None, sigma=None, input_data_cells=None) -> BBlocks:
         """Fit the Bayesian Blocks model given the specified fitness function.
 
         Parameters
@@ -870,7 +872,10 @@ class FitnessFunc:
                                 0.5 * (t[1:] + t[:-1]), 
                                 t[-1:]])
 
-        #np.savetxt('output.txt', edges, fmt='%f')
+        if input_data_cells is not None:
+            #custum data cells
+            edges = input_data_cells
+
         data_cells = edges
         # Store data_cells
         self.bblocks.set_data_cells(data_cells)

@@ -71,6 +71,8 @@ class AGILE_BBlocks(BaseBBlocks):
             estart = tstart
             estop = tstop
 
+        self.data_cells = None
+
         if self.filemode == 2 or self.filemode == 3:
             print("Binned light AGILE AP curve selected...")
             # Load the binned light curve data from the CSV file.
@@ -88,9 +90,12 @@ class AGILE_BBlocks(BaseBBlocks):
             # Extract the relevant columns for Bayesian blocks processing.
             t_i = self.df_event['lwtime'].to_numpy()  # Lower bound time
             t_f = self.df_event['uptime'].to_numpy()  # Upper bound time
+            #calculate custum data cells
+            self.data_cells = np.append(t_i, t_f[-1])
             # Calculate the midpoint time and time delta.
-            self.t_delta = (t_f - t_i)/2
-            self.t_c = t_i + self.t_delta
+            self.t_delta = (t_f - t_i)
+            self.dt = min(self.t_delta)
+            self.t_c = t_i + self.t_delta/2
             self.exp = self.df_event['exposure'].to_numpy()
             if self.filemode == 2:
                 self.x = self.df_event['counts'].to_numpy()
@@ -107,19 +112,23 @@ class AGILE_BBlocks(BaseBBlocks):
             self.datamode = 2 #lc
         elif self.filemode == 4:
             print("TTE...")
+            self.exp = None
             # Load the TTE data from the CSV file.
             df_tte = pd.read_csv(ph_path, delim_whitespace=True, header=None)
             # Assign column names.
             df_tte.columns = ['time', 'l', 'b', '_', '_c', '_d', '_e', '_f', '_g']
             # Filter the data to only include rows within the event time range.
+            df_tte['time'] = df_tte['time'].apply(self.__tt_to_mjd)
             self.df_event = df_tte[(df_tte['time'] >= estart) & (df_tte['time'] <= estop)]
             print("Number of photons in this event is:", len(self.df_event))
             # Set time-related variables for Bayesian blocks processing.
-            self.t_delta = 0
+            self.data_cells = None
+            self.dt = 0
+            self.t_delta = None
             self.t_c = self.df_event['time'].to_numpy()  # Event times
             self.x = np.ones_like(self.t_c)  # Set counts to 1 for each event
             self.sigma = np.zeros_like(self.t_c)  # Set sigma to 0
-            self.datamode = 3 #tte
+            self.datamode = 1 #tte
         elif self.filemode == 5:
             print("Binned light AGILE RATE light curve selected...")
             # Load the binned rate light curve data from the CSV file.
@@ -130,9 +139,13 @@ class AGILE_BBlocks(BaseBBlocks):
             # Extract the relevant columns for Bayesian blocks processing.
             t_i = self.df_event['lwtime'].to_numpy()  # Lower bound time
             t_f = self.df_event['uptime'].to_numpy()  # Upper bound time
+            #calculate custum data cells
+            self.data_cells = np.append(t_i, t_f[-1])
+            self.exp = None
             # Calculate the midpoint time and time delta.
-            self.t_delta = (t_f - t_i)/2
-            self.t_c = t_i + self.t_delta
+            self.t_delta = (t_f - t_i)
+            self.dt = min(self.t_delta)
+            self.t_c = t_i + self.t_delta/2
             self.x = self.df_event['rate'].to_numpy()
             if ratefactor == 0:
                 xmean = self.x.mean() / 5.0
@@ -153,10 +166,7 @@ class AGILE_BBlocks(BaseBBlocks):
         
         # Initialize the BBlocks object and set the data for Bayesian blocks analysis.
         self.resbblocks = BBlocks()
-        if self.filemode != 2:
-            self.resbblocks.set_data(self.x, self.t_c, self.sigma, self.t_delta)
-        if self.filemode == 2:
-            self.resbblocks.set_data(self.x, self.t_c, self.sigma, self.t_delta, exp=self.exp)
+        self.resbblocks.set_data(self.x, self.t_c, self.sigma, self.dt, datamode=self.datamode, t_delta=self.t_delta, exp=self.exp, data_cells = self.data_cells)
             
 
     def __mjd_to_tt(self, mjd):
