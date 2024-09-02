@@ -56,7 +56,8 @@ class FERMI_BBlocks(BaseBBlocks):
                 self.filemode = 3
         elif not mle_path is None: 
             self.filemode = 4
-        
+        print(self.filemode)
+
         # Store the event ID.
         self.event_id = event_id
         # Extract the start and stop times for the selected event.
@@ -68,7 +69,9 @@ class FERMI_BBlocks(BaseBBlocks):
             estop = tstop
 
         self.data_cells = None
+        self.cts = None
         self.exp = None
+        self.rate = None
 
         if self.filemode == 2 or self.filemode == 3:
             print("Binned light FERMI AP curve selected...")
@@ -97,18 +100,17 @@ class FERMI_BBlocks(BaseBBlocks):
             self.t_i = self.t_c - self.t_delta/2
             self.t_f = self.t_c + self.t_delta/2
             self.data_cells = np.append(self.t_i, self.t_f[-1])
-
+            self.cts = self.df_event['counts'].to_numpy()
+            self.rate = self.cts / self.exp
             if self.filemode == 2:
-                self.x = self.df_event['counts'].to_numpy()
+                self.x = self.cts
                 self.sigma = np.sqrt(self.x)  # Standard deviation as square root of counts
-            if self.filemode == 3:
-                cts = self.df_event['counts'].to_numpy()
-                print((cts / self.exp))
+            if self.filemode == 3:                
                 if ratefactor == 0:
                     expmean = self.exp.mean()
-                    self.x = ((cts / self.exp) * expmean).astype(int)
+                    self.x = ((self.cts / self.exp) * expmean).astype(int)
                 else:
-                    self.x = ((cts / self.exp) * ratefactor).astype(int)
+                    self.x = ((self.cts / self.exp) * ratefactor).astype(int)
                 self.sigma = np.sqrt(self.x)  # Standard deviation as square root of counts
             self.datamode = 2 #lc
         elif self.filemode == 4:
@@ -119,7 +121,7 @@ class FERMI_BBlocks(BaseBBlocks):
         
         # Initialize the BBlocks object and set the data for Bayesian blocks analysis.
         self.resbblocks = BBlocks()
-        self.resbblocks.set_data(self.x, self.t_c, self.sigma, self.dt, datamode=self.datamode, t_delta=self.t_delta, exp=self.exp, data_cells = self.data_cells)
+        self.resbblocks.set_data(self.x, self.t_c, self.sigma, self.dt, datamode=self.datamode, t_delta=self.t_delta, cts=self.cts, exp=self.exp, data_cells = self.data_cells, rate=self.rate)
             
     def fermi_seconds_to_mjd(self, fermi_seconds):
         """
