@@ -87,7 +87,7 @@ class BBlocksUtils:
         pass
 
     # Plot methods
-    def plot_blocks(self, bb, color='black', label="", normalization=None, t_delta=True, y_err=True, data_points=False, edge_points=False, data_cells=False, mean_blocks=True, sum_blocks=False):
+    def plot_blocks(self, bb, color='black', label="", normalization=None, t_delta=True, y_err=True, data_points=False, edge_points=False, data_cells=False, mean_blocks=False, sum_blocks=False, rate_blocks=True):
 
         """
         Plot the results of the Bayesian Blocks analysis, including the light curve, 
@@ -182,6 +182,31 @@ class BBlocksUtils:
                     i_edge += 1
             plt.step(self.data_out['data_cells'], means, color=self.color, label='blocks mean ' + label)
             #print(self.data_out['data_cells'], means)
+            plt.ylabel('Count')
+
+        if rate_blocks:
+            rates = []
+            i_edge = 0
+            # Normalize if needed
+            meanb = self.data_out['blockrate2']
+            edge_points = self.data_out['edge_points']
+            data_cells = self.data_out['edge_points']
+            if normalization == 'max':
+                max_mean_block = max(meanb)
+                meanb = meanb / max_mean_block
+            elif normalization == 'integral':
+                # Calculate the width of each block for integral normalization
+                block_widths = np.diff(np.concatenate(([edge_points[0]], edge_points, [edge_points[-1]])))
+                integral = np.sum(meanb * block_widths)
+                meanb = meanb / integral
+            # Calculate mean for each block
+            for t in self.data_out['data_cells']:
+                rates.append(meanb[i_edge])
+                if i_edge < len(self.data_out['edge_points']) and t >= self.data_out['edge_points'][i_edge]:
+                    i_edge += 1
+            plt.step(self.data_out['data_cells'], rates, color=self.color, label='rates ' + label)
+            plt.ylabel('Rate')
+
 
         # Plot the mean values of the blocks if specified
         if sum_blocks:
@@ -193,10 +218,11 @@ class BBlocksUtils:
                 if i_edge < len(self.data_out['edge_points']) and t >= self.data_out['edge_points'][i_edge]:
                     i_edge += 1
             plt.step(self.data_out['data_cells'], sumb, color='red', label='blocks sum ' + label)
+            plt.ylabel('Count')
         
         # Label the axes
-        plt.xlabel('t_c')
-        plt.ylabel('Count')
+        plt.xlabel('Time')
+        
         
         # Add a legend to the plot
         plt.legend()
@@ -400,7 +426,7 @@ class BBlocks:
         """
         self.data_out['dt_events'] = dt_events
         
-    def set_blockrate(self, blockrate_vec):
+    def set_blockrate(self, blockrate_vec, blockrate2_vec ):
         """
         Store the block rate vector for each block in the 'data_out' dictionary.
 
@@ -411,6 +437,7 @@ class BBlocks:
             in applications like time series analysis or signal detection.
         """
         self.data_out['blockrate'] = blockrate_vec
+        self.data_out['blockrate2'] = blockrate2_vec
         
     def set_eventrate(self, eventrate_vec):
         """
@@ -649,17 +676,11 @@ class BBlocks:
         if mean_blocks or sum_blocks:
             means = []
             sumb = []
-            rates = []
-            rateblocks = []
             i_edge = 0
             # Calculate mean and rate for each block
             for t in self.data_out['data_cells']:
                 means.append(self.data_out['mean_blocks'][i_edge])
                 sumb.append(self.data_out['sum_blocks'][i_edge])
-                rate_this = self.data_out['eventrate'][i_edge]
-                rates.append(rate_this if rate_this != np.inf else 0)
-                rate_this = self.data_out['blockrate'][i_edge]
-                rateblocks.append(rate_this if rate_this != np.inf else 0)
                 
                 if i_edge < len(self.data_out['edge_points']) and t >= self.data_out['edge_points'][i_edge]:
                     i_edge += 1
@@ -683,16 +704,31 @@ class BBlocks:
 
 
         # Second subplot: Rate vector over time
+
+        rates = []
+        rateblocks = []
+        i_edge = 0
+        # Calculate mean and rate for each block
+        for t in self.data_out['data_cells']:
+            rate_this = self.data_out['eventrate'][i_edge]
+            rates.append(rate_this if rate_this != np.inf else 0)
+            rate_this = self.data_out['blockrate2'][i_edge]
+            rateblocks.append(rate_this if rate_this != np.inf else 0)
+            
+            if i_edge < len(self.data_out['edge_points']) and t >= self.data_out['edge_points'][i_edge]:
+                i_edge += 1   
+
         if edge_points:
-            axs[1].vlines(self.data_out['edge_points'], 0, max(rates), 
+            axs[1].vlines(self.data_out['edge_points'], 0, max(rateblocks), 
                           label='Edge blocks', color=color, ls='--', 
                           linewidth=1.5)
         if data_cells:
-            axs[1].vlines(self.data_out['data_cells'], 0, max(rates), 
+            axs[1].vlines(self.data_out['data_cells'], 0, max(rateblocks), 
                           label='Data cell', color='gray', ls='--', 
                           linewidth=0.5)
-        axs[1].step(self.data_out['data_cells'], rates, color='tab:orange', label='eventrate', ls='--')
-        axs[1].step(self.data_out['data_cells'], rateblocks, color='tab:blue', label='eventblock')
+        #axs[1].step(self.data_out['data_cells'], rates, color='tab:orange', label='eventrate', ls='--')
+        #axs[1].step(self.data_out['data_cells'], rateblocks, color='tab:blue', label='blockrate2')
+        axs[1].step(self.data_out['data_cells'], rateblocks, color='tab:blue', label='blockrate2')
         axs[1].set_xlabel('Time')
         axs[1].set_ylabel('Rate')
         axs[1].legend()
@@ -716,7 +752,7 @@ class BBlocks:
 
 __all__ = ["FitnessFunc", "Events", "RegularEvents", "PointMeasures", "bayesian_blocks"]
  
-def bayesian_blocks(t, x=None, sigma=None, input_data_cells=None, fitness="events", **kwargs):
+def bayesian_blocks(t, x=None, sigma=None, input_data_cells=None, rate=None, fitness="events", **kwargs):
     """Compute optimal segmentation of data with Scargle's Bayesian Blocks.
 
     This is a flexible implementation of the Bayesian Blocks algorithm
@@ -829,7 +865,7 @@ def bayesian_blocks(t, x=None, sigma=None, input_data_cells=None, fitness="event
     else:
         raise ValueError("fitness parameter not understood")
 
-    return fitfunc.fit(t, x, sigma, input_data_cells)
+    return fitfunc.fit(t, x, sigma, input_data_cells, rate)
 
 
 
@@ -1000,7 +1036,7 @@ class FitnessFunc:
 
 
  
-    def fit(self, t, x=None, sigma=None, input_data_cells=None) -> BBlocks:
+    def fit(self, t, x=None, sigma=None, input_data_cells=None, rate=None) -> BBlocks:
         """Fit the Bayesian Blocks model given the specified fitness function.
 
         Parameters
@@ -1137,6 +1173,7 @@ class FitnessFunc:
         num_blocks = num_changepoints + 1;
         
         blockrate_vec    = np.zeros( num_blocks )
+        blockrate2_vec    = np.zeros( num_blocks )
         eventrate_vec    = np.zeros( num_blocks )
         mean_blocks = np.zeros( num_blocks )
         sum_blocks  = np.zeros( num_blocks )
@@ -1156,6 +1193,10 @@ class FitnessFunc:
             # Get the data 
             block_vec = x[ii_1:ii_2].copy()
             tt_vec = t[ii_1:ii_2].copy()
+            if rate is not None:
+                rate_vec = rate[ii_1:ii_2].copy()
+                blockrate2_vec[i] = rate_vec.mean()
+
             #print(tt_vec)
             edge_vec = data_cells[ii_1:ii_2+1].copy()
             #print(edge_vec)
@@ -1178,7 +1219,7 @@ class FitnessFunc:
             # Compute rate_vec of blocks based on difference between first and last event of data
             eventrate_vec[i] = sum_blocks[i]/dt_event_vec[i]
                     
-        self.bblocks.set_blockrate(blockrate_vec)
+        self.bblocks.set_blockrate(blockrate_vec, blockrate2_vec)
         self.bblocks.set_eventrate(eventrate_vec)
         self.bblocks.set_mean_blocks(mean_blocks)
         self.bblocks.set_sum_blocks(sum_blocks)
