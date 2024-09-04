@@ -25,7 +25,7 @@ class AGILE_BBlocks(BaseBBlocks):
         """
         super().__init__(detections_csv_path)
     
-    def select_event(self, ap_path:str=None, ph_path:str=None, rate_path:str=None, event_id: str=None, tstart=None, tstop=None, rate=False, ratefactor=0):
+    def select_event(self, mle_path=None, ap_path:str=None, ph_path:str=None, rate_path:str=None, event_id: str=None, tstart=None, tstop=None, rate=False, ratefactor=0):
         """
         Select an event by specifying its ID and data paths.
 
@@ -47,13 +47,15 @@ class AGILE_BBlocks(BaseBBlocks):
             For ap_path: A scale factor of the cts/exp values to obtain an integer after conversion. Typical value 1e7
             For rate_path: ratefactor=0 scale to int with a mean rate scaling, ratefactor=-1 show row data, scalefactor > 1 give your own scale factor
         """
-        if ap_path is None and ph_path is None and rate_path is None:
-            raise ValueError("`ap_path` and `ph_path` and `rate_path` must not be both None!")
+        if ap_path is None and ph_path is None and rate_path is None and mle_path is None:
+            raise ValueError("`ap_path` and `ph_path` and `rate_path` and mle_path must not be both None!")
         # Determine the data mode based on the provided paths.
         if not ap_path is None:   # If a path to binned light curve data is provided 'lwtime', 'uptime', 'exposure', 'counts'
             self.filemode = 2
             if rate == True:
                 self.filemode = 3
+        elif not mle_path is None:
+            self.filemode = 6
         elif not ph_path is None: # If a path to TTE data is provided
             self.filemode = 4
         elif not rate_path is None:
@@ -113,6 +115,35 @@ class AGILE_BBlocks(BaseBBlocks):
                 else:
                     self.x = ((self.cts / self.exp) * ratefactor).astype(int)
                 self.sigma = np.sqrt(self.x)  # Standard deviation as square root of counts
+            self.datamode = 2 #lc
+        elif self.filemode == 6:
+            print(f"Binned light AGILE MLE curve selected {self.filemode}...")
+            # Load the binned light curve data from the CSV file.
+            df_ap = pd.read_csv(mle_path, delim_whitespace=True)
+            df_ap = df_ap.sort_values(by='time_start_tt')
+            # Filter the data to only include rows within the event time range.
+            df_ap['lwtime'] = df_ap['time_start_tt'].apply(self.__tt_to_mjd)
+            df_ap['uptime'] = df_ap['time_end_tt'].apply(self.__tt_to_mjd)
+            self.df_event = df_ap[(df_ap["lwtime"] >= estart) & (df_ap["uptime"] <= estop)]
+            # Exclude rows with zero exposure.
+            self.df_event = self.df_event[self.df_event["exposure"] != 0]
+            self.df_event = self.df_event[self.df_event["sqrt(ts)"] > 3]
+            print(f"Total number of rows for the event {self.event_id} (no zero-exposure): {len(self.df_event)}")
+            print(f"Total number of photons for the event {self.event_id} (no zero-exposure): {self.df_event['counts'].sum()}")
+            # Extract the relevant columns for Bayesian blocks processing.
+            t_i = self.df_event['lwtime'].to_numpy()  # Lower bound time
+            t_f = self.df_event['uptime'].to_numpy()  # Upper bound time
+            #calculate custum data cells
+            self.data_cells = np.append(t_i, t_f[-1])
+            # Calculate the midpoint time and time delta.
+            self.t_delta = (t_f - t_i)
+            self.dt = min(self.t_delta)
+            self.t_c = t_i + self.t_delta/2
+            self.exp = self.df_event['exposure'].to_numpy()
+            self.cts = self.df_event['counts'].to_numpy().astype(int)
+            self.rate = self.df_event['flux'].to_numpy()
+            self.x = self.cts
+            self.sigma = np.sqrt(self.x)  # Standard deviation as square root of counts
             self.datamode = 2 #lc
         elif self.filemode == 4:
             print("TTE...")

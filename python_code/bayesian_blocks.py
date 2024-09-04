@@ -670,9 +670,7 @@ class BBlocks:
             axs[0].vlines(self.data_out['data_cells'], 0, max(self.data_in['x'] + yerr), 
                           label='Data cell', color='gray', ls='--', 
                           linewidth=0.5)
-        axs[0].errorbar(self.data_in['t'], self.data_in['x'], 
-                        xerr=xerr, yerr=yerr, fmt="o", color='tab:blue', 
-                        label='light curve')
+
         if mean_blocks or sum_blocks:
             means = []
             sumb = []
@@ -689,6 +687,12 @@ class BBlocks:
             axs[0].step(self.data_out['data_cells'], means, color='purple', label='blocks mean')
         if sum_blocks:
             axs[0].step(self.data_out['data_cells'], sumb, color='red', label='blocks sum')
+
+
+        axs[0].errorbar(self.data_in['t'], self.data_in['x'], 
+                        xerr=xerr, yerr=yerr, fmt="o", color='tab:blue', 
+                        label='light curve')
+                        
         axs[0].set_xlabel('Time')
         axs[0].set_ylabel('Count')
         axs[0].legend()
