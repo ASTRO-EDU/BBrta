@@ -113,7 +113,7 @@ class BaseBBlocks:
         """
         # Compute the Bayesian blocks with the given parameters and plot the result.
         sigma = self.sigma if useerror else None
-        self.resbblocks = bayesian_blocks(self.t_c, self.x, sigma=sigma, fitness=fitness, input_data_cells=self.data_cells, p0=p0, gamma=gamma)
+        self.resbblocks = bayesian_blocks(self.t_c, self.x, sigma=sigma, fitness=fitness, input_data_cells=self.data_cells, rate=self.rate, p0=p0, gamma=gamma)
         if self.datamode == 2:
             self.resbblocks.plot_blocks(t_delta=True, edge_points=True, data_cells=True, mean_blocks=True)
         elif self.datamode == 1:

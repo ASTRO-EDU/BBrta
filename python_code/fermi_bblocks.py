@@ -101,7 +101,7 @@ class FERMI_BBlocks(BaseBBlocks):
             self.t_f = self.t_c + self.t_delta/2
             self.data_cells = np.append(self.t_i, self.t_f[-1])
             self.cts = self.df_event['counts'].to_numpy()
-            self.rate = self.cts / self.exp
+            self.rate = self.df_event['rate'].to_numpy()
             if self.filemode == 2:
                 self.x = self.cts
                 self.sigma = np.sqrt(self.x)  # Standard deviation as square root of counts
