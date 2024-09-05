@@ -14,6 +14,13 @@
 # streamlining the workflow and enabling a more comprehensive examination 
 # of the data within the AGILE RTA framework.
 
+#datamode=1 -> class event, unbinned data: t -> for each t, x is set to 1 - Fitness function eq 19 - Statistics: Bernoulli
+#datamode=2 -> class event, binned data: t, x -> x contains an integer number (the value of the bins) - Fitness function eq 19 - statistics Poisson
+#datamode=2 -> class RegularEvent, binned data: t, x -> x can be only 0 or 1 (no duplicated time teg) - Fitness function Eq. C23 
+#datamode=3 -> class PointMeasures - Fitness function eq. 41 from Scargle 2013 - statistics Gaussian
+
+#NB: for class event, if p0 is passed, the ncp_prior is computed as function p0_prior (see eq. 21 in Scargle (2013)), for all cases and datamodes. Be carefull, this should be applicable only for datamode=1 (check in the paper)
+
 """Bayesian Blocks for Time Series Analysis.
 
 Bayesian Blocks for Time Series Analysis
@@ -75,6 +82,143 @@ from astropy.utils.exceptions import AstropyUserWarning
 #####################################################################################################
 
 
+class BBlocksUtils:
+    def __init__(self):
+        pass
+
+    # Plot methods
+    def plot_blocks(self, bb, color='black', label="", normalization=None, t_delta=True, y_err=True, data_points=False, edge_points=False, data_cells=False, mean_blocks=True, sum_blocks=False):
+
+        """
+        Plot the results of the Bayesian Blocks analysis, including the light curve, 
+        detected blocks, and optionally the mean value of each block.
+        
+        Parameters:
+        -----------
+        t_delta : bool, optional
+            If True, includes error bars based on time resolution (dt) and Poisson uncertainties 
+            in the plot. Default is True.
+        edge_points : bool, optional
+            If True, plots the positions of the edge points between blocks. Default is True.
+        data_cells : bool, optional
+            If True, plots the positions of data cells or segments identified by the algorithm. 
+            Default is True.
+        mean_blocks : bool, optional
+            If True, plots the mean value within each identified block. Default is True.
+        sum_blocks : bool, optional
+            If True, plots the sum within each identified block. Default is False.
+        
+        Raises:
+        -------
+        Exception:
+            If an unsupported value is provided for 'alg'.
+        """
+        
+        # A small constant to avoid division by zero or other numerical issues
+        eps = 1e+5
+        self.data_in = bb.get_data_in()
+        self.data_out = bb.get_data_out()
+        self.bb = bb
+        self.color = color
+
+        # Determine error bars: Use dt for time and sqrt of counts for Poisson error if t_delta is True
+        if t_delta:
+            try:
+                xerr = self.data_in['t_delta'] / 2.0
+            except:
+                xerr = np.full_like(self.data_in['x'], self.data_in['dt'] / 2.0)
+            if y_err:
+                #yerr = np.sqrt(self.data_in['x'])
+                yerr = self.data_in['sigma']
+            else:
+                yerr = np.zeros_like(self.data_in['x'])
+        else:
+            xerr = np.zeros_like(self.data_in['x'])
+            yerr = np.zeros_like(self.data_in['x'])
+              
+
+        
+        # Create the figure for plotting
+        #plt.figure(figsize=(10, 6))
+        
+        # Plot the edge points if specified
+        if edge_points:
+            plt.vlines(self.data_out['edge_points'], 0, max(self.data_in['x'] + yerr), 
+                       label='Edge blocks', color=self.color, ls='--', 
+                       linewidth=1.5)
+        
+        # Plot the data cells if specified
+        if data_cells:
+            plt.vlines(self.data_out['data_cells'], 0, max(self.data_in['x'] + yerr), 
+                       label='Data cell', color='gray', ls='--', 
+                       linewidth=0.5)
+        
+        # Plot the actual data with error bars
+        if data_points:
+            plt.errorbar(self.data_in['t'], self.data_in['x'], 
+                     xerr=xerr, yerr=yerr, fmt="o", color='tab:blue', 
+                     label='light curve')
+        
+        # Plot the mean values of the blocks if specified
+        if mean_blocks:
+            means = []
+            i_edge = 0
+            # Normalize if needed
+            meanb = self.data_out['mean_blocks']
+            edge_points = self.data_out['edge_points']
+            data_cells = self.data_out['edge_points']
+            if normalization == 'max':
+                max_mean_block = max(meanb)
+                meanb = meanb / max_mean_block
+            elif normalization == 'integral':
+                # Calculate the width of each block for integral normalization
+                block_widths = np.diff(np.concatenate(([edge_points[0]], edge_points, [edge_points[-1]])))
+                integral = np.sum(meanb * block_widths)
+                meanb = meanb / integral
+            # Calculate mean for each block
+            for t in self.data_out['data_cells']:
+                means.append(meanb[i_edge])
+                if i_edge < len(self.data_out['edge_points']) and t >= self.data_out['edge_points'][i_edge]:
+                    i_edge += 1
+            plt.step(self.data_out['data_cells'], means, color=self.color, label='blocks mean ' + label)
+            #print(self.data_out['data_cells'], means)
+
+        # Plot the mean values of the blocks if specified
+        if sum_blocks:
+            sumb = []
+            i_edge = 0
+            # Calculate sum for each block
+            for t in self.data_out['data_cells']:
+                sumb.append(self.data_out['sum_blocks'][i_edge])
+                if i_edge < len(self.data_out['edge_points']) and t >= self.data_out['edge_points'][i_edge]:
+                    i_edge += 1
+            plt.step(self.data_out['data_cells'], sumb, color='red', label='blocks sum ' + label)
+        
+        # Label the axes
+        plt.xlabel('t_c')
+        plt.ylabel('Count')
+        
+        # Add a legend to the plot
+        plt.legend()
+        
+        # Rotate the x-axis labels for better readability
+        #plt.xticks(self.data_in['t'], self.data_in['t'], rotation=90)
+
+        # Reduce the number of xticks
+        #xticks = plt.gca().get_xticks()  # Get current xticks
+        #plt.xticks(xticks[::2], rotation=45)  # Only show every 2nd label and rotate them to 45 degrees
+        
+        # use MaxNLocator for automatic tick reduction
+        from matplotlib.ticker import MaxNLocator
+        plt.gca().xaxis.set_major_locator(MaxNLocator(integer=True, prune='both', nbins=5))
+
+
+        # Set the title of the plot
+        plt.title(f'Bayesian Blocks Analysis on Time Series ()')
+        # Uncomment plt.show() if running outside of a script that automatically renders plots
+        # plt.show()
+
+
 class BBlocks:
     def __init__(self):
         """
@@ -99,7 +243,7 @@ class BBlocks:
         Parameters:
         -----------
         p0 : float
-            The threshold that determines the sensitivity of change point detection.
+            The threshold that determines the sensitivity of change point detection. The ncp_prior is calculated using p0 and  eq. 21 in Scargle (2013)
         gamma : float
             The regularization parameter that influences the complexity penalty, controlling the 
             trade-off between model fit and complexity in the Bayesian Blocks algorithm.
@@ -119,7 +263,7 @@ class BBlocks:
         """
         self.data_in['fitness'] = fitness
         
-    def set_data(self, x, t, sigma, dt):
+    def set_data(self, x, t, sigma, dt, datamode=None, t_delta=None, data_cells=None, cts=None, exp=None, rate=None):
         """
         Store the observed data and related parameters in the 'data_in' dictionary.
 
@@ -129,27 +273,32 @@ class BBlocks:
             Data points or observed values.
         t : array-like
             Time or position associated with each data point.
+        t_delta : array-like
+            Delta time or position associated with each data point.
+        edges : array-like
+            Edges already calculated by an external algorithm.
         sigma : float
             Uncertainty or standard deviation of the data points.
         dt : float
             Time resolution or spacing between data points.
+        datamode : int
+            1 TTE
+            2 LC 
         """
         self.data_in['x'] = x
         self.data_in['t'] = t
+
+        self.data_in['N'] = len(t)
         self.data_in['sigma'] = sigma
         self.data_in['dt'] = dt
-    
-    # TODO: Add exposure to this objects? 
-    # def set_exposures(self, exp):
-    #     """
-    #     Store the exposures of data.
 
-    #     Parameters:
-    #     -----------
-    #     exp: array-like
-    #         How long the instrument observes and accumulates photons.
-    #     """
-    #     self.data_in['exposures'] = exp
+        self.data_in['t_delta'] = t_delta
+
+        self.data_in['datamode'] = datamode
+        self.data_in['cts'] = cts
+        self.data_in['exp'] = exp
+        self.data_in['rate'] = rate
+        self.data_in['input_data_cells'] = data_cells
         
     # Methods for setting output data (data_out)
     def set_data_cells(self, data_cells):
@@ -163,8 +312,9 @@ class BBlocks:
             where the data within each segment is assumed to be statistically homogeneous.
         """
         self.data_out['data_cells'] = data_cells
+        self.data_out['N_data_cells'] = len(data_cells)
     
-    def set_ncp_prior(self, ncp_prior):
+    def set_ncp_prior(self, ncp_prior, N):
         """
         Store the prior on the number of change points (NCP) in the 'data_out' dictionary.
 
@@ -175,6 +325,7 @@ class BBlocks:
             penalty on the introduction of additional change points.
         """
         self.data_out['ncp_prior'] = ncp_prior
+        self.data_out['N'] = N
     
     def set_change_points(self, change_points):
         """
@@ -187,6 +338,7 @@ class BBlocks:
             change in the statistical properties of the data, leading to a new segment or block.
         """
         self.data_out['change_points'] = change_points
+        self.data_out['N_change_points'] = len(change_points)
         
     def set_edge_points(self, edge_points):
         """
@@ -212,17 +364,64 @@ class BBlocks:
         """
         self.data_out['mean_blocks'] = mean_blocks
         
-    def set_rate_vec(self, rate_vec):
+    def set_sum_blocks(self, sum_blocks):
         """
-        Store the rate vector for each block in the 'data_out' dictionary.
+        Store the sum values for each block in the 'data_out' dictionary.
 
         Parameters:
         -----------
-        rate_vec : array-like
+        sum_blocks : array-like
+            Sum of the data within each identified block or segment, 
+            used to summarize the data within each segment.
+        """
+        self.data_out['sum_blocks'] = sum_blocks
+        
+    def set_dt_blocks(self, dt_blocks):
+        """
+        Store the dt values for each block as difference between edges in the 'data_out' dictionary.
+
+        Parameters:
+        -----------
+        dt_blocks : array-like
+           Size in time of each identified block or segment, 
+            used to summarize the data within each segment.
+        """
+        self.data_out['dt_blocks'] = dt_blocks
+
+    def set_dt_events(self, dt_events):
+        """
+        Store the dt values for each block as difference between data points in the 'data_out' dictionary.
+
+        Parameters:
+        -----------
+        dt_events : array-like
+           Size in time of the data points (difference between first and last) of each identified block or segment, 
+            used to summarize the data within each segment.
+        """
+        self.data_out['dt_events'] = dt_events
+        
+    def set_blockrate(self, blockrate_vec):
+        """
+        Store the block rate vector for each block in the 'data_out' dictionary.
+
+        Parameters:
+        -----------
+        blockrate_vec : array-like
             Represents the rate of change or event rate within each block, often important 
             in applications like time series analysis or signal detection.
         """
-        self.data_out['rate_vec'] = rate_vec
+        self.data_out['blockrate'] = blockrate_vec
+        
+    def set_eventrate(self, eventrate_vec):
+        """
+        Store the block rate vector for each block in the 'data_out' dictionary as difference in time between first and last event.
+
+        Parameters:
+        -----------
+        eventrate_vec : array-like
+            Represents the rate of change or event rate within each block as difference in time between first and last event., often important in applications like time series analysis or signal detection.
+        """
+        self.data_out['eventrate'] = eventrate_vec
 
     # Get methods
     def get_data_in(self):
@@ -252,7 +451,7 @@ class BBlocks:
         return self.data_out
 
     # Plot methods
-    def plot_blocks(self, t_delta=True, edge_points=True, data_cells=True, mean_blocks=True, alg='custom'):
+    def plot_blocks(self, t_delta=True, y_err=True, edge_points=True, data_cells=True, mean_blocks=True, sum_blocks=False, alg='custom'):
         """
         Plot the results of the Bayesian Blocks analysis, including the light curve, 
         detected blocks, and optionally the mean value of each block.
@@ -269,6 +468,8 @@ class BBlocks:
             Default is True.
         mean_blocks : bool, optional
             If True, plots the mean value within each identified block. Default is True.
+        sum_blocks : bool, optional
+            If True, plots the sum within each identified block. Default is False.
         alg : str, optional
             The algorithm source, which determines the color of the plot lines. Supported options 
             are 'custom', 'astropy', and 'matlab'. Default is 'custom'.
@@ -294,14 +495,24 @@ class BBlocks:
         
         # Determine error bars: Use dt for time and sqrt of counts for Poisson error if t_delta is True
         if t_delta:
-            xerr = self.data_in['dt']
-            yerr = np.sqrt(self.data_in['x'])
+            try:
+                xerr = self.data_in['t_delta'] / 2.0
+            except:
+                xerr = np.full_like(self.data_in['x'], self.data_in['dt'] / 2.0)
+
+            if y_err:
+                #yerr = np.sqrt(self.data_in['x'])
+                yerr = self.data_in['sigma']
+            else:
+                yerr = np.zeros_like(self.data_in['x'])
         else:
             xerr = np.zeros_like(self.data_in['x'])
             yerr = np.zeros_like(self.data_in['x'])
+              
+
         
         # Create the figure for plotting
-        plt.figure(figsize=(20, 6))
+        plt.figure(figsize=(10, 6))
         
         # Plot the edge points if specified
         if edge_points:
@@ -330,24 +541,39 @@ class BBlocks:
                 if i_edge < len(self.data_out['edge_points']) and t >= self.data_out['edge_points'][i_edge]:
                     i_edge += 1
             plt.step(self.data_out['data_cells'], means, color='purple', label='blocks mean')
+
+        # Plot the mean values of the blocks if specified
+        if sum_blocks:
+            sumb = []
+            i_edge = 0
+            # Calculate sum for each block
+            for t in self.data_out['data_cells']:
+                sumb.append(self.data_out['sum_blocks'][i_edge])
+                if i_edge < len(self.data_out['edge_points']) and t >= self.data_out['edge_points'][i_edge]:
+                    i_edge += 1
+            plt.step(self.data_out['data_cells'], sumb, color='red', label='blocks sum')
         
         # Label the axes
-        plt.xlabel('t_c')
+        plt.xlabel('Time')
         plt.ylabel('Count')
         
         # Add a legend to the plot
         plt.legend()
         
         # Rotate the x-axis labels for better readability
-        plt.xticks(self.data_in['t'], self.data_in['t'], rotation=90)
-        
+        #plt.xticks(self.data_in['t'], self.data_in['t'], rotation=90)
+        from matplotlib.ticker import MaxNLocator
+        plt.gca().xaxis.set_major_locator(MaxNLocator(integer=False, prune='both', nbins=14))
+        plt.xticks(rotation=90)
+        plt.tight_layout()
+
         # Set the title of the plot
         plt.title(f'Bayesian Blocks Analysis on Time Series ({alg})')
         # Uncomment plt.show() if running outside of a script that automatically renders plots
         # plt.show()
 
               
-    def plot_blocks_with_rate(self, t_delta=True, edge_points=True, data_cells=True, mean_blocks=True, alg='custom'):
+    def plot_blocks_with_rate(self, t_delta=True, y_err=True, edge_points=True, data_cells=True, mean_blocks=True, sum_blocks=False, alg='custom'):
         """
         Plot the results of the Bayesian Blocks analysis, including both the light curve with 
         block means and a rate vector showing changes over time.
@@ -364,6 +590,8 @@ class BBlocks:
             Default is True.
         mean_blocks : bool, optional
             If True, plots the mean value within each identified block. Default is True.
+        sum_blocks : bool, optional
+            If True, plots the sum within each identified block. Default is True.
         alg : str, optional
             The algorithm source, which determines the color of the plot lines. Supported options 
             are 'custom', 'astropy', and 'matlab'. Default is 'custom'.
@@ -389,14 +617,22 @@ class BBlocks:
 
         # Determine error bars: Use dt for time and sqrt of counts for Poisson error if t_delta is True
         if t_delta:
-            xerr = self.data_in['dt']
-            yerr = np.sqrt(self.data_in['x'])
+            try:
+                xerr = self.data_in['t_delta'] / 2.0
+            except:
+                xerr = np.full_like(self.data_in['x'], self.data_in['dt'] / 2.0)
+            if y_err:
+                #yerr = np.sqrt(self.data_in['x'])
+                yerr = self.data_in['sigma']
+            else:
+                yerr = np.zeros_like(self.data_in['x'])
         else:
             xerr = np.zeros_like(self.data_in['x'])
             yerr = np.zeros_like(self.data_in['x'])
 
+
         # Create the figure and two subplots
-        fig, axs = plt.subplots(2, 1, figsize=(20, 12))
+        fig, axs = plt.subplots(2, 1, figsize=(10, 10))
 
         # First subplot: Light curve with block means
         if edge_points:
@@ -410,25 +646,41 @@ class BBlocks:
         axs[0].errorbar(self.data_in['t'], self.data_in['x'], 
                         xerr=xerr, yerr=yerr, fmt="o", color='tab:blue', 
                         label='light curve')
-        if mean_blocks:
+        if mean_blocks or sum_blocks:
             means = []
+            sumb = []
             rates = []
+            rateblocks = []
             i_edge = 0
             # Calculate mean and rate for each block
             for t in self.data_out['data_cells']:
                 means.append(self.data_out['mean_blocks'][i_edge])
-                rate_this = self.data_out['rate_vec'][i_edge]
+                sumb.append(self.data_out['sum_blocks'][i_edge])
+                rate_this = self.data_out['eventrate'][i_edge]
                 rates.append(rate_this if rate_this != np.inf else 0)
+                rate_this = self.data_out['blockrate'][i_edge]
+                rateblocks.append(rate_this if rate_this != np.inf else 0)
                 
                 if i_edge < len(self.data_out['edge_points']) and t >= self.data_out['edge_points'][i_edge]:
                     i_edge += 1
+                    
+        if mean_blocks:
             axs[0].step(self.data_out['data_cells'], means, color='purple', label='blocks mean')
-        axs[0].set_xlabel('t_c')
+        if sum_blocks:
+            axs[0].step(self.data_out['data_cells'], sumb, color='red', label='blocks sum')
+        axs[0].set_xlabel('Time')
         axs[0].set_ylabel('Count')
         axs[0].legend()
         axs[0].set_xticks(self.data_in['t'])
-        axs[0].set_xticklabels(self.data_in['t'], rotation=90)
+        #axs[0].set_xticklabels(self.data_in['t'], rotation=90)
         axs[0].set_title(f'Bayesian Blocks Analysis on Time Series ({alg})')
+
+        # Rotate the x-axis labels for better readability
+        #plt.xticks(self.data_in['t'], self.data_in['t'], rotation=90)
+        from matplotlib.ticker import MaxNLocator
+        axs[0].xaxis.set_major_locator(MaxNLocator(integer=False, prune='both', nbins=20))
+        axs[0].tick_params(axis='x', rotation=90)
+
 
         # Second subplot: Rate vector over time
         if edge_points:
@@ -439,13 +691,17 @@ class BBlocks:
             axs[1].vlines(self.data_out['data_cells'], 0, max(rates), 
                           label='Data cell', color='gray', ls='--', 
                           linewidth=0.5)
-        axs[1].step(self.data_out['data_cells'], rates, color='tab:orange', label='rate_vec')
-        axs[1].set_xlabel('t_c')
+        axs[1].step(self.data_out['data_cells'], rates, color='tab:orange', label='eventrate', ls='--')
+        axs[1].step(self.data_out['data_cells'], rateblocks, color='tab:blue', label='eventblock')
+        axs[1].set_xlabel('Time')
         axs[1].set_ylabel('Rate')
         axs[1].legend()
         axs[1].set_xticks(self.data_in['t'])
-        axs[1].set_xticklabels(self.data_in['t'], rotation=90)
+        #axs[1].set_xticklabels(self.data_in['t'], rotation=90)
         axs[1].set_title('Rate Vector over Time')
+
+        axs[1].xaxis.set_major_locator(MaxNLocator(integer=False, prune='both', nbins=20))
+        axs[1].tick_params(axis='x', rotation=90)
 
         # Adjust layout to prevent overlap
         plt.tight_layout()
@@ -460,8 +716,8 @@ class BBlocks:
 
 __all__ = ["FitnessFunc", "Events", "RegularEvents", "PointMeasures", "bayesian_blocks"]
  
-def bayesian_blocks(t, x=None, sigma=None, fitness="events", **kwargs):
-    r"""Compute optimal segmentation of data with Scargle's Bayesian Blocks.
+def bayesian_blocks(t, x=None, sigma=None, input_data_cells=None, fitness="events", **kwargs):
+    """Compute optimal segmentation of data with Scargle's Bayesian Blocks.
 
     This is a flexible implementation of the Bayesian Blocks algorithm
     described in Scargle 2013 [1]_.
@@ -573,7 +829,7 @@ def bayesian_blocks(t, x=None, sigma=None, fitness="events", **kwargs):
     else:
         raise ValueError("fitness parameter not understood")
 
-    return fitfunc.fit(t, x, sigma)
+    return fitfunc.fit(t, x, sigma, input_data_cells)
 
 
 
@@ -620,10 +876,13 @@ class FitnessFunc:
         self.ncp_prior = ncp_prior
         self.bblocks = BBlocks()
         self.bblocks.set_arguments(p0, gamma)
+        self.verbose = False
 
 
  
     def validate_input(self, t, x=None, sigma=None):
+        #TODOAB this and the input routines must be merged
+        #TODOAB sort also sigma, t_delta, input edges
         """Validate inputs to the model.
 
         Parameters
@@ -741,7 +1000,7 @@ class FitnessFunc:
 
 
  
-    def fit(self, t, x=None, sigma=None) -> BBlocks:
+    def fit(self, t, x=None, sigma=None, input_data_cells=None) -> BBlocks:
         """Fit the Bayesian Blocks model given the specified fitness function.
 
         Parameters
@@ -773,12 +1032,17 @@ class FitnessFunc:
                                 0.5 * (t[1:] + t[:-1]), 
                                 t[-1:]])
 
-        np.savetxt('output.txt', edges, fmt='%f')
+        if input_data_cells is not None:
+            #custum data cells
+            edges = input_data_cells
+
         data_cells = edges
         # Store data_cells
         self.bblocks.set_data_cells(data_cells)
         
         block_length = t[-1] - edges
+        if self.verbose == True:
+            print(block_length)
         # arrays to store the best configuration
         N = len(t)
         best = np.zeros(N, dtype=float)
@@ -789,12 +1053,14 @@ class FitnessFunc:
             ncp_prior = self.compute_ncp_prior(N)
         else:
             ncp_prior = self.ncp_prior
-        self.bblocks.set_ncp_prior(ncp_prior)
+        self.bblocks.set_ncp_prior(ncp_prior, N)
 
         # ----------------------------------------------------------------
         # Start with first data cell; add one cell at each iteration
         # ----------------------------------------------------------------
         for R in range(N):
+            if self.verbose == True:
+                print("### R", R, block_length[: (R + 1)], block_length[R + 1])
             # Compute fit_vec : fitness of putative last block (end at R)
             kwds = {}
 
@@ -837,10 +1103,17 @@ class FitnessFunc:
                 i_max = np.argmax(A_R)
             last[R] = i_max
             best[R] = A_R[i_max]
+            if self.verbose == True:
+                print("A_R ",A_R)
+                print("best ", best)
+                print("last ", last)
+                print("i_max ", i_max)
         
         # ----------------------------------------------------------------
         # Now find changepoints by iteratively peeling off the last block
         # ----------------------------------------------------------------
+        if self.verbose == True:
+            print("CHANGE POINTS")
         change_points = np.zeros(N, dtype=int)
         # NOTE: Replaced the final block of the function to follow the
         # behavior of the MATLAB implementation, avoiding to return also  
@@ -849,7 +1122,10 @@ class FitnessFunc:
         change_points = []
         while index > 0:
             change_points.insert(0, index)
+            if self.verbose == True:
+                print(index, last[index - 1])
             index = last[index - 1]
+            
         # Store egde_points and change_points
         self.bblocks.set_change_points(change_points)
         self.bblocks.set_edge_points(edges[change_points])
@@ -860,10 +1136,13 @@ class FitnessFunc:
         num_changepoints = len(change_points)
         num_blocks = num_changepoints + 1;
         
-        rate_vec    = np.zeros( num_blocks )
+        blockrate_vec    = np.zeros( num_blocks )
+        eventrate_vec    = np.zeros( num_blocks )
         mean_blocks = np.zeros( num_blocks )
+        sum_blocks  = np.zeros( num_blocks )
         num_vec     = np.zeros( num_blocks )
-        dt_vec      = np.zeros( num_blocks )
+        dt_event_vec      = np.zeros( num_blocks )
+        dt_block_vec      = np.zeros( num_blocks )
         tt_1_vec    = np.zeros( num_blocks )
         tt_2_vec    = np.zeros( num_blocks )
         
@@ -877,15 +1156,34 @@ class FitnessFunc:
             # Get the data 
             block_vec = x[ii_1:ii_2].copy()
             tt_vec = t[ii_1:ii_2].copy()
+            #print(tt_vec)
+            edge_vec = data_cells[ii_1:ii_2+1].copy()
+            #print(edge_vec)
                         
             # Compute mean_blocks
             mean_blocks[i] = block_vec.mean()
             
-            # Compute rate_vec
-            rate_vec[i] = block_vec.sum()/(tt_vec[-1]-tt_vec[0])
+            # Compute sum_blocks
+            sum_blocks[i] = block_vec.sum()
+            
+            # Compute dt_eventl_vec, i.e. the difference between first and last time of data into blocks
+            dt_event_vec[i] = (tt_vec[-1]-tt_vec[0])
+            
+            # Compute dt_vec of blocks
+            dt_block_vec[i] = (edge_vec[-1]-edge_vec[0])
+            
+            # Compute rate_vec of blocks based on size of blocks
+            blockrate_vec[i] = sum_blocks[i]/dt_block_vec[i]
+            
+            # Compute rate_vec of blocks based on difference between first and last event of data
+            eventrate_vec[i] = sum_blocks[i]/dt_event_vec[i]
                     
-        self.bblocks.set_rate_vec(rate_vec)
+        self.bblocks.set_blockrate(blockrate_vec)
+        self.bblocks.set_eventrate(eventrate_vec)
         self.bblocks.set_mean_blocks(mean_blocks)
+        self.bblocks.set_sum_blocks(sum_blocks)
+        self.bblocks.set_dt_events(dt_event_vec)
+        self.bblocks.set_dt_blocks(dt_block_vec)
         
         return self.bblocks
 
@@ -926,6 +1224,8 @@ class Events(FitnessFunc):
     #     log_args[log_args <= 0] = 1e-3
     #     return N_k * (np.log(log_args))
     def fitness(self, N_k, T_k):
+
+        #print("T_K N_K for fitness: ", T_k, N_k)
         # eq. 19 from Scargle 2013
         log_args_Tk = T_k.copy()
         log_args_Tk[T_k <= 0] = np.inf
@@ -934,6 +1234,7 @@ class Events(FitnessFunc):
 
  
     def validate_input(self, t, x, sigma):
+        
         t, x, sigma = super().validate_input(t, x, sigma)
         if x is not None and np.any(x % 1 > 0):
             raise ValueError("x must be integer counts for fitness='events'")
