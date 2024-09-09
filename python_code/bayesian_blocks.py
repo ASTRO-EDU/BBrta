@@ -97,195 +97,30 @@ class BBlocks:
         """
         self.data_in = {}
         self.data_out = {}
-
-    # Methods for setting input data (data_in)
-    def set_arguments(self, p0, gamma):
-        """
-        Store the prior probability 'p0' and the regularization parameter 'gamma' in the 'data_in' dictionary.
-
-        Parameters:
-        -----------
-        p0 : float
-            The threshold that determines the sensitivity of change point detection. The ncp_prior is calculated using p0 and  eq. 21 in Scargle (2013)
-        gamma : float
-            The regularization parameter that influences the complexity penalty, controlling the 
-            trade-off between model fit and complexity in the Bayesian Blocks algorithm.
-        """
-        self.data_in['p0'] = p0
-        self.data_in['gamma'] = gamma
-    
-    def set_fitness(self, fitness):
-        """
-        Store the fitness function in the 'data_in' dictionary.
-
-        Parameters:
-        -----------
-        fitness : callable
-            A function that evaluates the optimal segmentation of the data. It typically quantifies 
-            how well a particular segmentation explains the data within the Bayesian Blocks framework.
-        """
-        self.data_in['fitness'] = fitness
         
-    def set_data(self, x, t, sigma, dt, datamode=None, t_delta=None, data_cells=None, cts=None, exp=None, rate=None):
+    def set_argsIn(self, **kwargs):
         """
-        Store the observed data and related parameters in the 'data_in' dictionary.
+        Update the 'data_in' dictionary with the provided keyword arguments.
 
-        Parameters:
-        -----------
-        x : array-like
-            Data points or observed values.
-        t : array-like
-            Time or position associated with each data point.
-        t_delta : array-like
-            Delta time or position associated with each data point.
-        edges : array-like
-            Edges already calculated by an external algorithm.
-        sigma : float
-            Uncertainty or standard deviation of the data points.
-        dt : float
-            Time resolution or spacing between data points.
-        datamode : int
-            1 TTE
-            2 LC 
+        This method allows you to dynamically add or update input parameters 
+        for the Bayesian Blocks algorithm. The keyword arguments are passed 
+        in as key-value pairs, which are then directly added to the 'data_in' 
+        dictionary. This is a flexible way to manage input data without having 
+        to specify each individual parameter explicitly.
         """
-        self.data_in['x'] = x
-        self.data_in['t'] = t
-
-        self.data_in['N'] = len(t)
-        self.data_in['sigma'] = sigma
-        self.data_in['dt'] = dt
-
-        self.data_in['t_delta'] = t_delta
-
-        self.data_in['datamode'] = datamode
-        self.data_in['cts'] = cts
-        self.data_in['exp'] = exp
-        self.data_in['rate'] = rate
-        self.data_in['input_data_cells'] = data_cells
+        self.data_in.update(kwargs)
         
-    # Methods for setting output data (data_out)
-    def set_data_cells(self, data_cells):
+    def set_result(self, **kwargs):
         """
-        Store the segmented data blocks in the 'data_out' dictionary.
+        Update the 'data_out' dictionary with the provided keyword arguments.
 
-        Parameters:
-        -----------
-        data_cells : array-like
-            The individual segments (or blocks) identified by the Bayesian Blocks algorithm, 
-            where the data within each segment is assumed to be statistically homogeneous.
-        """
-        self.data_out['data_cells'] = data_cells
-        self.data_out['N_data_cells'] = len(data_cells)
-    
-    def set_ncp_prior(self, ncp_prior, N):
-        """
-        Store the prior on the number of change points (NCP) in the 'data_out' dictionary.
+        This method allows you to store or update the output results of the 
+        Bayesian Blocks algorithm, such as change points and segment statistics. 
+        The keyword arguments are passed in as key-value pairs and are added 
+        directly to the 'data_out' dictionary.
 
-        Parameters:
-        -----------
-        ncp_prior : float
-            A prior that influences the Bayesian inference process, acting as a complexity 
-            penalty on the introduction of additional change points.
         """
-        self.data_out['ncp_prior'] = ncp_prior
-        self.data_out['N'] = N
-    
-    def set_change_points(self, change_points):
-        """
-        Store the detected change points in the 'data_out' dictionary.
-
-        Parameters:
-        -----------
-        change_points : array-like
-            Positions (in time or space) where the Bayesian Blocks algorithm identifies a significant 
-            change in the statistical properties of the data, leading to a new segment or block.
-        """
-        self.data_out['change_points'] = change_points
-        self.data_out['N_change_points'] = len(change_points)
-        
-    def set_edge_points(self, edge_points):
-        """
-        Store the positions of the edges of each block in the 'data_out' dictionary.
-
-        Parameters:
-        -----------
-        edge_points : array-like
-            Boundaries between consecutive blocks, marking where one block ends and another begins. 
-            These points are critical for defining the segments produced by the Bayesian Blocks algorithm.
-        """
-        self.data_out['edge_points'] = edge_points
-        
-    def set_mean_blocks(self, mean_blocks):
-        """
-        Store the mean values for each block in the 'data_out' dictionary.
-
-        Parameters:
-        -----------
-        mean_blocks : array-like
-            Average values of the data within each identified block or segment, 
-            used to summarize the data within each segment.
-        """
-        self.data_out['mean_blocks'] = mean_blocks
-        
-    def set_sum_blocks(self, sum_blocks):
-        """
-        Store the sum values for each block in the 'data_out' dictionary.
-
-        Parameters:
-        -----------
-        sum_blocks : array-like
-            Sum of the data within each identified block or segment, 
-            used to summarize the data within each segment.
-        """
-        self.data_out['sum_blocks'] = sum_blocks
-        
-    def set_dt_blocks(self, dt_blocks):
-        """
-        Store the dt values for each block as difference between edges in the 'data_out' dictionary.
-
-        Parameters:
-        -----------
-        dt_blocks : array-like
-           Size in time of each identified block or segment, 
-            used to summarize the data within each segment.
-        """
-        self.data_out['dt_blocks'] = dt_blocks
-
-    def set_dt_events(self, dt_events):
-        """
-        Store the dt values for each block as difference between data points in the 'data_out' dictionary.
-
-        Parameters:
-        -----------
-        dt_events : array-like
-           Size in time of the data points (difference between first and last) of each identified block or segment, 
-            used to summarize the data within each segment.
-        """
-        self.data_out['dt_events'] = dt_events
-        
-    def set_blockrate(self, blockrate_vec, blockrate2_vec ):
-        """
-        Store the block rate vector for each block in the 'data_out' dictionary.
-
-        Parameters:
-        -----------
-        blockrate_vec : array-like
-            Represents the rate of change or event rate within each block, often important 
-            in applications like time series analysis or signal detection.
-        """
-        self.data_out['blockrate'] = blockrate_vec
-        self.data_out['blockrate2'] = blockrate2_vec
-        
-    def set_eventrate(self, eventrate_vec):
-        """
-        Store the block rate vector for each block in the 'data_out' dictionary as difference in time between first and last event.
-
-        Parameters:
-        -----------
-        eventrate_vec : array-like
-            Represents the rate of change or event rate within each block as difference in time between first and last event., often important in applications like time series analysis or signal detection.
-        """
-        self.data_out['eventrate'] = eventrate_vec
+        self.data_out.update(kwargs)
 
     # Get methods
     def get_data_in(self):
@@ -748,7 +583,7 @@ class FitnessFunc:
         self.gamma = gamma
         self.ncp_prior = ncp_prior
         self.bblocks = BBlocks()
-        self.bblocks.set_arguments(p0, gamma)
+        self.bblocks.set_argsIn(p0=p0, gamma=gamma)
         self.verbose = False
 
 
@@ -821,7 +656,7 @@ class FitnessFunc:
                 raise ValueError("sigma does not match the shape of x")
         
         # Store in results data 
-        self.bblocks.set_data(x, t, sigma, dt)
+        self.bblocks.set_argsIn(x=x, t=t, sigma=sigma, dt=dt)
         
         return t, x, sigma
 
@@ -911,7 +746,7 @@ class FitnessFunc:
 
         data_cells = edges
         # Store data_cells
-        self.bblocks.set_data_cells(data_cells)
+        self.bblocks.set_argsIn(data_cells=data_cells)
         
         block_length = t[-1] - edges
         if self.verbose == True:
@@ -926,7 +761,7 @@ class FitnessFunc:
             ncp_prior = self.compute_ncp_prior(N)
         else:
             ncp_prior = self.ncp_prior
-        self.bblocks.set_ncp_prior(ncp_prior, N)
+        self.bblocks.set_argsIn(ncp_prior=ncp_prior, N=N)
 
         # ----------------------------------------------------------------
         # Start with first data cell; add one cell at each iteration
@@ -1000,14 +835,14 @@ class FitnessFunc:
             index = last[index - 1]
             
         # Store egde_points and change_points
-        self.bblocks.set_change_points(change_points)
-        self.bblocks.set_edge_points(edges[change_points])
+        self.bblocks.set_result(change_points=change_points,
+                                  edge_points=edges[change_points])
         
         # ----------------------------------------------------------------
         # Now compute the height of each block and rate_vector
         # ----------------------------------------------------------------
         num_changepoints = len(change_points)
-        num_blocks = num_changepoints + 1;
+        num_blocks = num_changepoints + 1
         
         blockrate_vec    = np.zeros( num_blocks )
         blockrate2_vec    = np.zeros( num_blocks )
@@ -1056,12 +891,9 @@ class FitnessFunc:
             # Compute rate_vec of blocks based on difference between first and last event of data
             eventrate_vec[i] = sum_blocks[i]/dt_event_vec[i]
                     
-        self.bblocks.set_blockrate(blockrate_vec, blockrate2_vec)
-        self.bblocks.set_eventrate(eventrate_vec)
-        self.bblocks.set_mean_blocks(mean_blocks)
-        self.bblocks.set_sum_blocks(sum_blocks)
-        self.bblocks.set_dt_events(dt_event_vec)
-        self.bblocks.set_dt_blocks(dt_block_vec)
+        self.bblocks.set_result(blockrate_vec=blockrate_vec, blockrate2_vec=blockrate2_vec,
+                                  eventrate_vec=eventrate_vec, mean_blocks=mean_blocks, sum_blocks=sum_blocks,
+                                  dt_event_vec=dt_event_vec, dt_block_vec=dt_block_vec)
         
         return self.bblocks
 
@@ -1093,7 +925,7 @@ class Events(FitnessFunc):
     
     def __init__(self, p0=0.05, gamma=None, ncp_prior=None):
         super().__init__(p0, gamma, ncp_prior)
-        self.bblocks.set_fitness("events")
+        self.bblocks.set_argsIn(fitness="events")
 
  
     # def fitness(self, N_k, T_k):
