@@ -72,6 +72,7 @@ References
 
 import warnings
 from inspect import signature
+import json
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -148,6 +149,78 @@ class BBlocks:
             and other derived statistics or processed data.
         """
         return self.data_out
+
+    # JSON methods
+    def load_from_json(self, file_path):
+        """
+        Load 'data_in' and 'data_out' from a JSON file and handle special numeric values.
+        
+        Parameters:
+        -----------
+        file_path : str
+            The path to the JSON file to load.
+        """
+        try:
+            def convert_from_serializable(obj):
+                """Convert serialized values back to their original form (e.g., 'Infinity' -> np.inf)."""
+                if isinstance(obj, str):
+                    if obj == "inf":
+                        return np.inf
+                    elif obj == "-inf":
+                        return -np.inf
+                    elif obj == "nan":
+                        return np.nan
+                elif isinstance(obj, list):
+                    return [convert_from_serializable(i) for i in obj]
+                elif isinstance(obj, dict):
+                    return {k: convert_from_serializable(v) for k, v in obj.items()}
+                return obj
+            with open(file_path, 'r') as f:
+                data = json.load(f)
+            # Convert special values (like 'Infinity' or 'NaN') back to their numerical form
+            if 'data_in' in data:
+                self.data_in.update(convert_from_serializable(data['data_in']))
+            if 'data_out' in data:
+                self.data_out.update(convert_from_serializable(data['data_out']))
+            print("Data successfully loaded from JSON file.")
+        except FileNotFoundError:
+            print(f"Error: File '{file_path}' not found.")
+        except json.JSONDecodeError:
+            print(f"Error: Failed to decode JSON from file '{file_path}'.")
+
+    def save_to_json(self, file_path):
+        """
+        Save 'data_in' and 'data_out' to a JSON file, converting NumPy arrays, NumPy types, and infinite values.
+
+        Parameters:
+        -----------
+        file_path : str
+            The path where the JSON file will be saved.
+        """
+        try:
+            # Convert any NumPy arrays, NumPy-specific types, and handle infinite values
+            def convert_to_serializable(obj):
+                if isinstance(obj, float) and (np.isinf(obj) or np.isnan(obj)):  # Handle infinities and NaN
+                    return str(obj)  # Converts to "Infinity", "-Infinity", or "NaN"
+                elif isinstance(obj, np.number):  # Handle NumPy types
+                    return obj.item()
+                elif isinstance(obj, dict):
+                    return {k: convert_to_serializable(v) for k, v in obj.items()}
+                elif isinstance(obj, (list, np.ndarray)):
+                    return [convert_to_serializable(i) for i in obj]
+                return obj
+
+            data = {
+                'data_in': convert_to_serializable(self.data_in),
+                'data_out': convert_to_serializable(self.data_out)
+            }
+
+            with open(file_path, 'w') as f:
+                json.dump(data, f, indent=4)
+
+            print(f"Data successfully saved to '{file_path}'.")
+        except IOError:
+            print(f"Error: Could not write to file '{file_path}'.")
 
     # Plot methods
     def plot_blocks(self, t_delta=True, y_err=True, edge_points=True, data_cells=True, mean_blocks=True, sum_blocks=False, alg='custom'):
