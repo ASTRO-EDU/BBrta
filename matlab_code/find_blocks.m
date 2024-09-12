@@ -13,9 +13,9 @@ function data_out = find_blocks( data_in )
 %
 % Description of input data:  data_in (data structure):
 %                             data_in.cell_data 
-%                             data_in.nn_vec 
-%                             data_in.tt 
-%                             data_in.fp_rate 
+%                             data_in.x 
+%                             data_in.t 
+%                             data_in.p0 
 %                             data_in.ncp_prior 
 %                             data_in.do_iter
 %                             data_in.tt_start 
@@ -47,19 +47,19 @@ if isfield( data_in, 'cell_data')
     cell_data = data_in.cell_data;
     [ num_points, dummy ] = size( cell_data );
     tt = 1: num_points; % nominal evenly spaced time points
-    nn_vec = [];
-elseif isfield( data_in, 'nn_vec')
+    x = [];
+elseif isfield( data_in, 'x')
     data_mode = 2;                   % BINNED DATA
-    nn_vec = data_in.nn_vec;
-    if isfield( data_in, 'tt')
-       tt = data_in.tt;
+    nn_vec = data_in.x;
+    if isfield( data_in, 't')
+       tt = data_in.t;
     else
        tt = 1:length( nn_vec ); % nominal evenly spaced times
     end
 else
     data_mode = 1;                   % TIME-TAGGED EVENT DATA
-    if isfield( data_in, 'tt')
-       tt = data_in.tt;
+    if isfield( data_in, 't')
+       tt = data_in.t;
     else
        error('times not specified')
     end
@@ -74,8 +74,8 @@ if min( dt ) < 0
     error('Points must be ordered')
 end
 
-if isfield( data_in, 'fp_rate')
-    fp_rate = data_in.fp_rate;
+if isfield( data_in, 'p0')
+    fp_rate = data_in.p0;
 else
     fp_rate = .05; % Default value
 end
@@ -306,7 +306,7 @@ data_out.rate_vec      = rate_vec;
 data_out.best = best;
 data_out.last = last;
 data_out.ncp_prior     = ncp_prior;
-data_out.nn = nn_vec;
+data_out.x = nn_vec;
     
 if data_mode ~= 3
     data_out.block_length = block_length;
