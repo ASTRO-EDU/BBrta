@@ -13,9 +13,9 @@ function data_out = find_blocks( data_in )
 %
 % Description of input data:  data_in (data structure):
 %                             data_in.cell_data 
-%                             data_in.nn_vec 
-%                             data_in.tt 
-%                             data_in.fp_rate 
+%                             data_in.x 
+%                             data_in.t 
+%                             data_in.p0 
 %                             data_in.ncp_prior 
 %                             data_in.do_iter
 %                             data_in.tt_start 
@@ -47,19 +47,19 @@ if isfield( data_in, 'cell_data')
     cell_data = data_in.cell_data;
     [ num_points, dummy ] = size( cell_data );
     tt = 1: num_points; % nominal evenly spaced time points
-    nn_vec = [];
-elseif isfield( data_in, 'nn_vec')
+    x = [];
+elseif isfield( data_in, 'x')
     data_mode = 2;                   % BINNED DATA
-    nn_vec = data_in.nn_vec;
-    if isfield( data_in, 'tt')
-       tt = data_in.tt;
+    nn_vec = data_in.x;
+    if isfield( data_in, 't')
+       tt = data_in.t;
     else
        tt = 1:length( nn_vec ); % nominal evenly spaced times
     end
 else
     data_mode = 1;                   % TIME-TAGGED EVENT DATA
-    if isfield( data_in, 'tt')
-       tt = data_in.tt;
+    if isfield( data_in, 't')
+       tt = data_in.t;
     else
        error('times not specified')
     end
@@ -74,8 +74,8 @@ if min( dt ) < 0
     error('Points must be ordered')
 end
 
-if isfield( data_in, 'fp_rate')
-    fp_rate = data_in.fp_rate;
+if isfield( data_in, 'p0')
+    fp_rate = data_in.p0;
 else
     fp_rate = .05; % Default value
 end
@@ -108,6 +108,7 @@ end
 count_vec = [];
 if data_mode ~= 3
     edges = [ tt_start 0.500000 *( tt(2:end) + tt(1:end-1) )' tt_stop ];
+    data_cells = edges;
     block_length = tt_stop - edges;
 end
 iter_count = 0;
@@ -300,13 +301,17 @@ if data_mode == 1 % Empty bin check
 end
 
 data_out.edge_points   = edges(change_points);
+if data_mode == 2 
+    data_out.data_cells    = data_cells;
+end
 data_out.change_points = change_points;
 data_out.num_vec       = num_vec;
 data_out.rate_vec      = rate_vec;
-data_out.best = best;
-data_out.last = last;
+data_out.best          = best;
+data_out.last          = last;
 data_out.ncp_prior     = ncp_prior;
-data_out.nn = nn_vec;
+data_out.x             = nn_vec;
+data_out.N             = length(tt);
     
 if data_mode ~= 3
     data_out.block_length = block_length;

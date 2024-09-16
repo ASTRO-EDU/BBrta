@@ -12,7 +12,7 @@ function data_in = prepare_data(mod)
         data = load(curve_filename);
         times = load(times_filename);
         % Vettore dei dati della curva di luce
-        data_in.nn_vec = data';
+        data_in.x = data';
     elseif mod == "tte"
         times = load(tte_filename);
     else
@@ -20,10 +20,11 @@ function data_in = prepare_data(mod)
     end
     % Vettore dei tempi (assumiamo tempi uniformemente distribuiti)
     %data_in.tt = (0:length(data)-1)';
-    data_in.tt = times;
+    data_in.t = times;
 
     % Impostare gli altri campi con valori predefiniti o calcolati
     p0 = 2.;
-    data_in.fp_rate = p0; % Tasso di falsi positivi predefinito
+    data_in.p0 = p0; % Tasso di falsi positivi predefinito
     data_in.do_iter = 0; % Non iterare per default
+    data_in.rate = NaN;
 end
