@@ -26,4 +26,5 @@ function data_in = prepare_data(mod)
     p0 = 2.;
     data_in.p0 = p0; % Tasso di falsi positivi predefinito
     data_in.do_iter = 0; % Non iterare per default
+    data_in.rate = NaN;
 end

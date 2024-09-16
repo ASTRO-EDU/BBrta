@@ -108,6 +108,7 @@ end
 count_vec = [];
 if data_mode ~= 3
     edges = [ tt_start 0.500000 *( tt(2:end) + tt(1:end-1) )' tt_stop ];
+    data_cells = edges;
     block_length = tt_stop - edges;
 end
 iter_count = 0;
@@ -300,13 +301,17 @@ if data_mode == 1 % Empty bin check
 end
 
 data_out.edge_points   = edges(change_points);
+if data_mode == 2 
+    data_out.data_cells    = data_cells;
+end
 data_out.change_points = change_points;
 data_out.num_vec       = num_vec;
 data_out.rate_vec      = rate_vec;
-data_out.best = best;
-data_out.last = last;
+data_out.best          = best;
+data_out.last          = last;
 data_out.ncp_prior     = ncp_prior;
-data_out.x = nn_vec;
+data_out.x             = nn_vec;
+data_out.N             = length(tt);
     
 if data_mode ~= 3
     data_out.block_length = block_length;
