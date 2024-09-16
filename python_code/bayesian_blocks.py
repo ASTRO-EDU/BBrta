@@ -161,6 +161,7 @@ class BBlocks:
             The path to the JSON file to load.
         """
         try:
+            #####
             def convert_from_serializable(obj):
                 """Convert serialized values back to their original form (e.g., 'Infinity' -> np.inf)."""
                 if isinstance(obj, str):
@@ -171,10 +172,11 @@ class BBlocks:
                     elif obj == "nan":
                         return np.nan
                 elif isinstance(obj, list):
-                    return [convert_from_serializable(i) for i in obj]
+                    return np.array([convert_from_serializable(i) for i in obj])
                 elif isinstance(obj, dict):
                     return {k: convert_from_serializable(v) for k, v in obj.items()}
                 return obj
+            #####
             with open(file_path, 'r') as f:
                 data = json.load(f)
             # Convert special values (like 'Infinity' or 'NaN') back to their numerical form
@@ -182,6 +184,10 @@ class BBlocks:
                 self.data_in.update(convert_from_serializable(data['data_in']))
             if 'data_out' in data:
                 self.data_out.update(convert_from_serializable(data['data_out']))
+            self.data_out.update(self.__compute_statistics(
+                x=self.data_in["x"], t=self.data_in["t"], 
+                change_points=self.data_out["change_points"], N=self.data_out["N"], 
+                data_cells=self.data_out["data_cells"], rate=self.data_in["rate"]))
             print("Data successfully loaded from JSON file.")
         except FileNotFoundError:
             print(f"Error: File '{file_path}' not found.")
@@ -687,13 +693,88 @@ class BBlocks:
                         **kwargs)
         res = fitfunc.fit(t_valid, x_valid, sigma_valid, input_data_cells_valid, rate_valid)
         self.set_result(**res)
+        # ----------------------------------------------------------------
+        # Now compute the height of each block and rate_vector
+        # ----------------------------------------------------------------
+        self.data_out.update(
+            self.__compute_statistics(
+                x=self.data_in["x"], t=self.data_in["t"], 
+                change_points=self.data_out["change_points"], N=self.data_out["N"], 
+                data_cells=self.data_out["data_cells"]
+            )
+        )
         return res
         
+    def __compute_statistics(self, **kwargs):
+        # Get the data
+        x = kwargs["x"]
+        t = kwargs["t"]
+        change_points = kwargs["change_points"]
+        N = kwargs["N"]
+        data_cells = kwargs["data_cells"] 
+        if "rate" in kwargs.keys():
+            rate = kwargs["rate"]
+        else:
+            rate = None
+        # Compute the number of changepoints and blocks
+        num_changepoints = len(change_points)
+        num_blocks = num_changepoints + 1
+        # Define the statistics 
+        blockrate_vec    = np.zeros( num_blocks )
+        blockrate2_vec    = np.zeros( num_blocks )
+        eventrate_vec    = np.zeros( num_blocks )
+        mean_blocks = np.zeros( num_blocks )
+        sum_blocks  = np.zeros( num_blocks )
+        num_vec     = np.zeros( num_blocks )
+        dt_event_vec      = np.zeros( num_blocks )
+        dt_block_vec      = np.zeros( num_blocks )
+        tt_1_vec    = np.zeros( num_blocks )
+        tt_2_vec    = np.zeros( num_blocks )
+        
+        cpt_use = np.zeros(num_changepoints+2, dtype=np.int32)
+        cpt_use[1:-1] = change_points
+        cpt_use[-1] = N
+
+        for i in range(num_blocks):
+            ii_1 = cpt_use[i] # start
+            ii_2 = cpt_use[i + 1]
+            # Get the data 
+            block_vec = x[ii_1:ii_2].copy()
+            tt_vec = t[ii_1:ii_2].copy()
+            if rate is not None:
+                rate_vec = rate[ii_1:ii_2].copy()
+                blockrate2_vec[i] = rate_vec.mean()
+            
+            edge_vec = data_cells[ii_1:ii_2+1].copy()
+            # Compute mean_blocks
+            mean_blocks[i] = block_vec.mean()
+            # Compute sum_blocks
+            sum_blocks[i] = block_vec.sum()
+            # Compute dt_eventl_vec, i.e. the difference between first and last time of data into blocks
+            dt_event_vec[i] = (tt_vec[-1]-tt_vec[0])
+            # Compute dt_vec of blocks
+            dt_block_vec[i] = (edge_vec[-1]-edge_vec[0])
+            # Compute rate_vec of blocks based on size of blocks
+            blockrate_vec[i] = sum_blocks[i]/dt_block_vec[i]
+            # Compute rate_vec of blocks based on difference between first and last event of data
+            eventrate_vec[i] = sum_blocks[i]/dt_event_vec[i]
+        # Return the result dictionary 
+        return {
+            "edge_vec":      edge_vec,
+            "sum_blocks":    sum_blocks,
+            "mean_blocks":   mean_blocks,
+            "dt_event_vec":  dt_event_vec,
+            "dt_block_vec":  dt_block_vec,
+            "blockrate_vec": blockrate_vec,
+            "eventrate_vec": eventrate_vec
+        }
 #####################################################################################################
 
 # TODO: implement other fitness functions from appendix C of Scargle 2013
 
 __all__ = ["FitnessFunc", "Events", "RegularEvents", "PointMeasures"]
+
+
 
 class FitnessFunc:
     """Base class for bayesian blocks fitness functions.
@@ -893,61 +974,8 @@ class FitnessFunc:
         # Store egde_points and change_points
         self.data_out["change_points"] = change_points
         self.data_out["edge_points"] = edges[change_points]
+        self.data_out["N"] = N
         
-        # ----------------------------------------------------------------
-        # Now compute the height of each block and rate_vector
-        # ----------------------------------------------------------------
-        num_changepoints = len(change_points)
-        num_blocks = num_changepoints + 1
-        
-        blockrate_vec    = np.zeros( num_blocks )
-        blockrate2_vec    = np.zeros( num_blocks )
-        eventrate_vec    = np.zeros( num_blocks )
-        mean_blocks = np.zeros( num_blocks )
-        sum_blocks  = np.zeros( num_blocks )
-        num_vec     = np.zeros( num_blocks )
-        dt_event_vec      = np.zeros( num_blocks )
-        dt_block_vec      = np.zeros( num_blocks )
-        tt_1_vec    = np.zeros( num_blocks )
-        tt_2_vec    = np.zeros( num_blocks )
-        
-        cpt_use = np.zeros(num_changepoints+2, dtype=np.int32)
-        cpt_use[1:-1] = change_points
-        cpt_use[-1] = N
-
-        for i in range(num_blocks):
-            ii_1 = cpt_use[i] # start
-            ii_2 = cpt_use[i + 1]
-            # Get the data 
-            block_vec = x[ii_1:ii_2].copy()
-            tt_vec = t[ii_1:ii_2].copy()
-            if rate is not None:
-                rate_vec = rate[ii_1:ii_2].copy()
-                blockrate2_vec[i] = rate_vec.mean()
-            
-            edge_vec = data_cells[ii_1:ii_2+1].copy()
-            # Compute mean_blocks
-            mean_blocks[i] = block_vec.mean()
-            # Compute sum_blocks
-            sum_blocks[i] = block_vec.sum()
-            # Compute dt_eventl_vec, i.e. the difference between first and last time of data into blocks
-            dt_event_vec[i] = (tt_vec[-1]-tt_vec[0])
-            # Compute dt_vec of blocks
-            dt_block_vec[i] = (edge_vec[-1]-edge_vec[0])
-            # Compute rate_vec of blocks based on size of blocks
-            blockrate_vec[i] = sum_blocks[i]/dt_block_vec[i]
-            # Compute rate_vec of blocks based on difference between first and last event of data
-            eventrate_vec[i] = sum_blocks[i]/dt_event_vec[i]
-                    
-        self.data_out.update(
-            {"blockrate_vec": blockrate_vec, 
-             "blockrate2_vec": blockrate2_vec,
-             "eventrate_vec": eventrate_vec, 
-             "mean_blocks": mean_blocks, 
-             "sum_blocks": sum_blocks,
-             "dt_event_vec": dt_event_vec, 
-             "dt_block_vec": dt_block_vec
-             })        
         return self.data_out
 
 
