@@ -464,9 +464,9 @@ class BBlocks:
         i_edge = 0
         # Calculate mean and rate for each block
         for t in self.data_out['data_cells']:
-            rate_this = self.data_out['eventrate'][i_edge]
+            rate_this = self.data_out['eventrate_vec'][i_edge]
             rates.append(rate_this if rate_this != np.inf else 0)
-            rate_this = self.data_out['blockrate2'][i_edge]
+            rate_this = self.data_out['blockrate_vec'][i_edge]
             rateblocks.append(rate_this if rate_this != np.inf else 0)
             
             if i_edge < len(self.data_out['edge_points']) and t >= self.data_out['edge_points'][i_edge]:
@@ -481,8 +481,8 @@ class BBlocks:
                           label='Data cell', color='gray', ls='--', 
                           linewidth=0.5)
         #axs[1].step(self.data_out['data_cells'], rates, color='tab:orange', label='eventrate', ls='--')
-        #axs[1].step(self.data_out['data_cells'], rateblocks, color='tab:blue', label='blockrate2')
-        axs[1].step(self.data_out['data_cells'], rateblocks, color='tab:blue', label='blockrate2')
+        #axs[1].step(self.data_out['data_cells'], rateblocks, color='tab:blue', label='blockrate_vec')
+        axs[1].step(self.data_out['data_cells'], rateblocks, color='tab:blue', label='blockrate_vec')
         axs[1].set_xlabel('Time')
         axs[1].set_ylabel('Rate')
         axs[1].legend()
@@ -721,7 +721,7 @@ class BBlocks:
         num_blocks = num_changepoints + 1
         # Define the statistics 
         blockrate_vec    = np.zeros( num_blocks )
-        blockrate2_vec    = np.zeros( num_blocks )
+        blockrate_vec_vec    = np.zeros( num_blocks )
         eventrate_vec    = np.zeros( num_blocks )
         mean_blocks = np.zeros( num_blocks )
         sum_blocks  = np.zeros( num_blocks )
@@ -743,7 +743,7 @@ class BBlocks:
             tt_vec = t[ii_1:ii_2].copy()
             if rate is not None:
                 rate_vec = rate[ii_1:ii_2].copy()
-                blockrate2_vec[i] = rate_vec.mean()
+                blockrate_vec_vec[i] = rate_vec.mean()
             
             edge_vec = data_cells[ii_1:ii_2+1].copy()
             # Compute mean_blocks
