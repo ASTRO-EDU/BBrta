@@ -200,7 +200,7 @@ class AGILE_BBlocks(BaseBBlocks):
             raise ValueError("No filemode")
         
         # Initialize the BBlocks object and set the data for Bayesian blocks analysis.
-        self.bblocks = BBlocks()
+        # self.bblocks = BBlocks()
         self.bblocks.set_argsIn(x=self.x, t=self.t_c, sigma=self.sigma, dt=self.dt, datamode=self.datamode, t_delta=self.t_delta, cts = self.cts, exp=self.exp, data_cells=self.data_cells, rate=self.rate)
             
 

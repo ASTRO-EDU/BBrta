@@ -29,6 +29,8 @@ class BaseBBlocks:
         detections_csv_path : str
             The path to the CSV file containing detection data time ranges.
         """
+        self.bblocks = BBlocks()
+        
         if detections_csv_path is not None:
             # Load the detections data from the provided CSV file.
             self.df_detections = pd.read_csv(detections_csv_path)
@@ -113,7 +115,6 @@ class BaseBBlocks:
         """
         # Compute the Bayesian blocks with the given parameters and plot the result.
         sigma = self.sigma if useerror else None
-        self.bblocks = BBlocks()
         self.bblocks.bayesian_blocks(self.t_c, self.x, sigma=sigma, fitness=fitness, input_data_cells=self.data_cells, rate=self.rate, p0=p0, gamma=gamma)
         if self.datamode == 2:
             self.bblocks.plot_blocks(t_delta=True, edge_points=True, data_cells=True, mean_blocks=True)

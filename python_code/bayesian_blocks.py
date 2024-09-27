@@ -466,7 +466,8 @@ class BBlocks:
         for t in self.data_out['data_cells']:
             rate_this = self.data_out['eventrate'][i_edge]
             rates.append(rate_this if rate_this != np.inf else 0)
-            rate_this = self.data_out['blockrate2'][i_edge]
+            rate_key = 'blockrate2' if self.data_in['datamode'] == 2 else 'blockrate'
+            rate_this = self.data_out[rate_key][i_edge]
             rateblocks.append(rate_this if rate_this != np.inf else 0)
             
             if i_edge < len(self.data_out['edge_points']) and t >= self.data_out['edge_points'][i_edge]:
@@ -481,8 +482,7 @@ class BBlocks:
                           label='Data cell', color='gray', ls='--', 
                           linewidth=0.5)
         #axs[1].step(self.data_out['data_cells'], rates, color='tab:orange', label='eventrate', ls='--')
-        #axs[1].step(self.data_out['data_cells'], rateblocks, color='tab:blue', label='blockrate2_vec')
-        axs[1].step(self.data_out['data_cells'], rateblocks, color='tab:blue', label='blockrate2')
+        axs[1].step(self.data_out['data_cells'], rateblocks, color='tab:blue', label=rate_key)
         axs[1].set_xlabel('Time')
         axs[1].set_ylabel('Rate')
         axs[1].legend()
