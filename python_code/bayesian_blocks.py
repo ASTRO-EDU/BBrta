@@ -464,9 +464,9 @@ class BBlocks:
         i_edge = 0
         # Calculate mean and rate for each block
         for t in self.data_out['data_cells']:
-            rate_this = self.data_out['eventrate_vec'][i_edge]
+            rate_this = self.data_out['eventrate'][i_edge]
             rates.append(rate_this if rate_this != np.inf else 0)
-            rate_this = self.data_out['blockrate_vec'][i_edge]
+            rate_this = self.data_out['blockrate2'][i_edge]
             rateblocks.append(rate_this if rate_this != np.inf else 0)
             
             if i_edge < len(self.data_out['edge_points']) and t >= self.data_out['edge_points'][i_edge]:
@@ -481,8 +481,8 @@ class BBlocks:
                           label='Data cell', color='gray', ls='--', 
                           linewidth=0.5)
         #axs[1].step(self.data_out['data_cells'], rates, color='tab:orange', label='eventrate', ls='--')
-        #axs[1].step(self.data_out['data_cells'], rateblocks, color='tab:blue', label='blockrate_vec')
-        axs[1].step(self.data_out['data_cells'], rateblocks, color='tab:blue', label='blockrate_vec')
+        #axs[1].step(self.data_out['data_cells'], rateblocks, color='tab:blue', label='blockrate2_vec')
+        axs[1].step(self.data_out['data_cells'], rateblocks, color='tab:blue', label='blockrate2')
         axs[1].set_xlabel('Time')
         axs[1].set_ylabel('Rate')
         axs[1].legend()
@@ -558,8 +558,8 @@ class BBlocks:
             t = unq_t
             x = x[unq_ind]
             # TODO: input_datacells
-            if rate is not None:
-                rate = rate[unq_ind]
+            if not rate is None:
+                rate = rate[unq_ind]            
 
         # verify the given sigma value
         if sigma is None:
@@ -686,9 +686,8 @@ class BBlocks:
             fitfunc = fitness
         else:
             raise ValueError("fitness parameter not understood")
-        
         t_valid, x_valid, sigma_valid, input_data_cells_valid, rate_valid = self.prepare_input(t, x, sigma, input_data_cells, rate)
-        self.set_argsIn(t=t_valid, x=x_valid, sigma=sigma_valid, 
+        self.set_argsIn(t=t_valid, x=x_valid, sigma=sigma_valid, N_t=len(t_valid),
                         input_data_cells=input_data_cells, rate=rate_valid,
                         **kwargs)
         res = fitfunc.fit(t_valid, x_valid, sigma_valid, input_data_cells_valid, rate_valid)
@@ -700,7 +699,7 @@ class BBlocks:
             self.__compute_statistics(
                 x=self.data_in["x"], t=self.data_in["t"], 
                 change_points=self.data_out["change_points"], N=self.data_out["N"], 
-                data_cells=self.data_out["data_cells"]
+                data_cells=self.data_out["data_cells"], rate=rate_valid
             )
         )
         return res
@@ -712,24 +711,21 @@ class BBlocks:
         change_points = kwargs["change_points"]
         N = kwargs["N"]
         data_cells = kwargs["data_cells"] 
-        if "rate" in kwargs.keys():
-            rate = kwargs["rate"]
-        else:
-            rate = None
+        rate = kwargs["rate"]
         # Compute the number of changepoints and blocks
         num_changepoints = len(change_points)
         num_blocks = num_changepoints + 1
         # Define the statistics 
-        blockrate_vec    = np.zeros( num_blocks )
-        blockrate_vec_vec    = np.zeros( num_blocks )
-        eventrate_vec    = np.zeros( num_blocks )
-        mean_blocks = np.zeros( num_blocks )
-        sum_blocks  = np.zeros( num_blocks )
-        num_vec     = np.zeros( num_blocks )
+        blockrate_vec     = np.zeros( num_blocks )
+        blockrate2_vec    = np.zeros( num_blocks )
+        eventrate_vec     = np.zeros( num_blocks )
+        mean_blocks       = np.zeros( num_blocks )
+        sum_blocks        = np.zeros( num_blocks )
+        num_vec           = np.zeros( num_blocks )
         dt_event_vec      = np.zeros( num_blocks )
         dt_block_vec      = np.zeros( num_blocks )
-        tt_1_vec    = np.zeros( num_blocks )
-        tt_2_vec    = np.zeros( num_blocks )
+        tt_1_vec          = np.zeros( num_blocks )
+        tt_2_vec          = np.zeros( num_blocks )
         
         cpt_use = np.zeros(num_changepoints+2, dtype=np.int32)
         cpt_use[1:-1] = change_points
@@ -743,7 +739,7 @@ class BBlocks:
             tt_vec = t[ii_1:ii_2].copy()
             if rate is not None:
                 rate_vec = rate[ii_1:ii_2].copy()
-                blockrate_vec_vec[i] = rate_vec.mean()
+                blockrate2_vec[i] = rate_vec.mean()
             
             edge_vec = data_cells[ii_1:ii_2+1].copy()
             # Compute mean_blocks
@@ -765,8 +761,9 @@ class BBlocks:
             "mean_blocks":   mean_blocks,
             "dt_event_vec":  dt_event_vec,
             "dt_block_vec":  dt_block_vec,
-            "blockrate_vec": blockrate_vec,
-            "eventrate_vec": eventrate_vec
+            "blockrate":     blockrate_vec,
+            "blockrate2":    blockrate2_vec,
+            "eventrate":     eventrate_vec
         }
 #####################################################################################################
 
@@ -974,7 +971,8 @@ class FitnessFunc:
         # Store egde_points and change_points
         self.data_out["change_points"] = change_points
         self.data_out["edge_points"] = edges[change_points]
-        self.data_out["N"] = N
+        self.data_out["N_data_cells"] = N
+        self.data_out["N_change_points"] = len(change_points)
         
         return self.data_out
 

@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 from astropy.time import Time
-from bayesian_blocks import BBlocks, bayesian_blocks
+from bayesian_blocks import BBlocks
 import os
 from base_bblocks import BaseBBlocks 
 
@@ -200,8 +200,8 @@ class AGILE_BBlocks(BaseBBlocks):
             raise ValueError("No filemode")
         
         # Initialize the BBlocks object and set the data for Bayesian blocks analysis.
-        self.resbblocks = BBlocks()
-        self.resbblocks.set_data(self.x, self.t_c, self.sigma, self.dt, datamode=self.datamode, t_delta=self.t_delta, cts = self.cts, exp=self.exp, data_cells = self.data_cells, rate = self.rate)
+        self.bblocks = BBlocks()
+        self.bblocks.set_argsIn(x=self.x, t=self.t_c, sigma=self.sigma, dt=self.dt, datamode=self.datamode, t_delta=self.t_delta, cts = self.cts, exp=self.exp, data_cells=self.data_cells, rate=self.rate)
             
 
     def __mjd_to_tt(self, mjd):

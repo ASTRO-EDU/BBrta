@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 from astropy.time import Time
-from bayesian_blocks import BBlocks, bayesian_blocks
+from bayesian_blocks import BBlocks
 import os
 
 class BaseBBlocks:
@@ -90,10 +90,10 @@ class BaseBBlocks:
         """
         # Plot the data using the BBlocks object based on the data mode.
         if self.datamode == 2:
-            self.resbblocks.plot_blocks(t_delta=True, y_err=yerr, edge_points=False, 
+            self.bblocks.plot_blocks(t_delta=True, y_err=yerr, edge_points=False, 
                                         data_cells=False, mean_blocks=False)
         elif self.datamode == 1:
-            self.resbblocks.plot_blocks(t_delta=False, y_err=yerr, edge_points=False, 
+            self.bblocks.plot_blocks(t_delta=False, y_err=yerr, edge_points=False, 
                                         data_cells=False, mean_blocks=False)
 
     def bayesian_blocks(self, fitness='events', p0=None, gamma=None, useerror=False):
@@ -113,11 +113,12 @@ class BaseBBlocks:
         """
         # Compute the Bayesian blocks with the given parameters and plot the result.
         sigma = self.sigma if useerror else None
-        self.resbblocks = bayesian_blocks(self.t_c, self.x, sigma=sigma, fitness=fitness, input_data_cells=self.data_cells, rate=self.rate, p0=p0, gamma=gamma)
+        self.bblocks = BBlocks()
+        self.bblocks.bayesian_blocks(self.t_c, self.x, sigma=sigma, fitness=fitness, input_data_cells=self.data_cells, rate=self.rate, p0=p0, gamma=gamma)
         if self.datamode == 2:
-            self.resbblocks.plot_blocks(t_delta=True, edge_points=True, data_cells=True, mean_blocks=True)
+            self.bblocks.plot_blocks(t_delta=True, edge_points=True, data_cells=True, mean_blocks=True)
         elif self.datamode == 1:
-            self.resbblocks.plot_blocks(t_delta=False, edge_points=True, data_cells=True, mean_blocks=False)
+            self.bblocks.plot_blocks(t_delta=False, edge_points=True, data_cells=True, mean_blocks=False)
 
     def plot_bblocks(self):
         """
@@ -125,9 +126,9 @@ class BaseBBlocks:
         """
         # Plot the Bayesian blocks with appropriate time delta setting based on data mode.
         if self.datamode == 2:
-            self.resbblocks.plot_blocks(t_delta=True, edge_points=True, data_cells=True, mean_blocks=True)
+            self.bblocks.plot_blocks(t_delta=True, edge_points=True, data_cells=True, mean_blocks=True)
         elif self.datamode == 1:
-            self.resbblocks.plot_blocks(t_delta=False, edge_points=True, data_cells=True, mean_blocks=False)
+            self.bblocks.plot_blocks(t_delta=False, edge_points=True, data_cells=True, mean_blocks=False)
     
     def plot_blocks_with_rate(self):
         """
@@ -136,13 +137,13 @@ class BaseBBlocks:
         """
         # Plot the data using the BBlocks object based on the data mode.
         if self.datamode == 2:
-            self.resbblocks.plot_blocks_with_rate(t_delta=True, edge_points=True, data_cells=True, mean_blocks=True, sum_blocks=False)
+            self.bblocks.plot_blocks_with_rate(t_delta=True, edge_points=True, data_cells=True, mean_blocks=True, sum_blocks=False)
         elif self.datamode == 1:
-            self.resbblocks.plot_blocks_with_rate(t_delta=False, edge_points=True, data_cells=True, mean_blocks=False, sum_blocks=True)
+            self.bblocks.plot_blocks_with_rate(t_delta=False, edge_points=True, data_cells=True, mean_blocks=False, sum_blocks=True)
     
     def get_data_out(self):
-        return self.resbblocks.get_data_out() if self.resbblocks else None
+        return self.bblocks.get_data_out() if self.bblocks else None
     
     def get_data_in(self):
-        return self.resbblocks.get_data_in() if self.resbblocks else None
+        return self.bblocks.get_data_in() if self.bblocks else None
     
