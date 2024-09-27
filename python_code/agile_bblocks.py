@@ -84,10 +84,10 @@ class AGILE_BBlocks(BaseBBlocks):
             df_ap = pd.read_csv(ap_path, delim_whitespace=True, header=None)
             df_ap.columns = ['lwtime', 'uptime', 'exposure', 'counts']
             #convert in MJD
-            df_ap['lwtime'] = df_ap['lwtime'].apply(self.__tt_to_mjd)
-            df_ap['uptime'] = df_ap['uptime'].apply(self.__tt_to_mjd)
+            df_ap['lwtime_mjd'] = df_ap['lwtime'].apply(self.__tt_to_mjd)
+            df_ap['uptime_mjd'] = df_ap['uptime'].apply(self.__tt_to_mjd)
             # Filter the data to only include rows within the event time range.
-            self.df_event = df_ap[(df_ap["lwtime"] >= estart) & (df_ap["uptime"] <= estop)]
+            self.df_event = df_ap[(df_ap["lwtime_mjd"] >= estart) & (df_ap["uptime_mjd"] <= estop)]
             # Exclude rows with zero exposure.
             self.df_event = self.df_event[self.df_event["exposure"] != 0]
             print(f"Total number of rows for the event {self.event_id} (no zero-exposure): {len(self.df_event)}")
@@ -131,8 +131,8 @@ class AGILE_BBlocks(BaseBBlocks):
             print(f"Total number of rows for the event {self.event_id} (no zero-exposure): {len(self.df_event)}")
             print(f"Total number of photons for the event {self.event_id} (no zero-exposure): {self.df_event['counts'].sum()}")
             # Extract the relevant columns for Bayesian blocks processing.
-            t_i = self.df_event['lwtime'].to_numpy()  # Lower bound time
-            t_f = self.df_event['uptime'].to_numpy()  # Upper bound time
+            t_i = self.df_event['time_start_tt'].to_numpy()  # Lower bound time
+            t_f = self.df_event['time_end_tt'].to_numpy()  # Upper bound time
             #calculate custum data cells
             self.data_cells = np.append(t_i, t_f[-1])
             # Calculate the midpoint time and time delta.
@@ -153,8 +153,8 @@ class AGILE_BBlocks(BaseBBlocks):
             # Assign column names.
             df_tte.columns = ['time', 'l', 'b', '_', '_c', '_d', '_e', '_f', '_g']
             # Filter the data to only include rows within the event time range.
-            df_tte['time'] = df_tte['time'].apply(self.__tt_to_mjd)
-            self.df_event = df_tte[(df_tte['time'] >= estart) & (df_tte['time'] <= estop)]
+            df_tte['time_mjd'] = df_tte['time'].apply(self.__tt_to_mjd)
+            self.df_event = df_tte[(df_tte['time_mjd'] >= estart) & (df_tte['time_mjd'] <= estop)]
             print("Number of photons in this event is:", len(self.df_event))
             # Set time-related variables for Bayesian blocks processing.
             self.data_cells = None
@@ -168,12 +168,12 @@ class AGILE_BBlocks(BaseBBlocks):
             print("Binned light AGILE RATE light curve selected...")
             # Load the binned rate light curve data from the CSV file.
             df_ap = pd.read_csv(rate_path, delim_whitespace=True, header=None)
-            df_ap.columns = ['lwtime', 'uptime', 'rate']
+            df_ap.columns = ['lwtime', 'uptime', 'time_start_tt', 'time_end_tt' 'rate']
             # Filter the data to only include rows within the event time range.
             self.df_event = df_ap[(df_ap["lwtime"] >= estart) & (df_ap["uptime"] <= estop)]
             # Extract the relevant columns for Bayesian blocks processing.
-            t_i = self.df_event['lwtime'].to_numpy()  # Lower bound time
-            t_f = self.df_event['uptime'].to_numpy()  # Upper bound time
+            t_i = self.df_event['time_start_tt'].to_numpy()  # Lower bound time
+            t_f = self.df_event['time_end_tt'].to_numpy()  # Upper bound time
             #calculate custum data cells
             self.data_cells = np.append(t_i, t_f[-1])
             self.exp = None
