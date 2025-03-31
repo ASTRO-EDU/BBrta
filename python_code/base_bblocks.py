@@ -20,27 +20,11 @@ class BaseBBlocks:
         An instance of the BBlocks class used to manage and process Bayesian blocks.
     """
     
-    def __init__(self, detections_csv_path: str = None):
+    def __init__(self):
         """
-        Initialize the BaseBBlocks class by loading detections from a CSV file.
-
-        Parameters:
-        -----------
-        detections_csv_path : str
-            The path to the CSV file containing detection data time ranges.
+        Initialize the BaseBBlocks class.
         """
         self.bblocks = BBlocks()
-        
-        if detections_csv_path is not None:
-            # Load the detections data from the provided CSV file.
-            self.df_detections = pd.read_csv(detections_csv_path)
-            # Set the index of the DataFrame to be the flare_id.
-            self.df_detections.index = self.df_detections["flare_id"]
-            # Keep only the start and stop times (in MJD format).
-            self.df_detections = self.df_detections[["mjd_start", "mjd_stop"]]
-            # Convert the MJD times to TT time relative to the AGILE epoch.
-            #self.df_detections['mjd_start'] = self.df_detections['mjd_start'].apply(self.__mjd_to_tt)
-            #self.df_detections['mjd_stop'] = self.df_detections['mjd_stop'].apply(self.__mjd_to_tt)
 
     def select_event(self, *args, **kwargs):
         """

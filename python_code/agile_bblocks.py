@@ -14,18 +14,17 @@ class AGILE_BBlocks(BaseBBlocks):
     and processing time formats unique to AGILE.
     """
     
-    def __init__(self, detections_csv_path: str = None):
+    def __init__(self):
         """
         Initialize the AGILE_BBlocks class by loading detections from a CSV file.
-
-        Parameters:
-        -----------
-        detections_csv_path : str
-            The path to the CSV file containing detection data time ranges.
         """
-        super().__init__(detections_csv_path)
+        super().__init__()
     
-    def select_event(self, mle_path=None, ap_path:str=None, ph_path:str=None, rate_path:str=None, event_id: str=None, tstart=None, tstop=None, rate=False, ratefactor=0):
+    def select_event(self, 
+                     mle_path=None, ap_path:str=None, ph_path:str=None, rate_path:str=None, 
+                     event_id: str=None, detections_csv_path: str = None,
+                     tstart=None, tstop=None, 
+                     rate=False, ratefactor=0):
         """
         Select an event by specifying its ID and data paths.
 
@@ -35,8 +34,18 @@ class AGILE_BBlocks(BaseBBlocks):
             The path to the binned light curve data file. 
         ph_path : str
             The path to the TTE data file.
+        detections_csv_path : str or None
+            The path to the CSV file containing detection data time ranges.
+            Example of csv:
+            ```
+            flare_id,mjd_start,mjd_stop
+            E01,54343.0,54344.0
+            E02,54732.0,54733.0
+            E03,54746.0,54747.0
+            E04,54915.0,54916.0
+            ```
         event_id : str
-            The ID of the event to select (default is None).
+            The ID of the event to select (default is None) if detections_csv_path is not None.
         tstart 
             Time start in MJD. This is used if event_id is None
         tstop 
@@ -48,7 +57,9 @@ class AGILE_BBlocks(BaseBBlocks):
             For rate_path: ratefactor=0 scale to int with a mean rate scaling, ratefactor=-1 show row data, scalefactor > 1 give your own scale factor
         """
         if ap_path is None and ph_path is None and rate_path is None and mle_path is None:
-            raise ValueError("`ap_path` and `ph_path` and `rate_path` and mle_path must not be both None!")
+            raise ValueError("`ap_path` and `ph_path` and `rate_path` and `mle_path` must not be both None!")
+        if (detections_csv_path is None) != (event_id is None):
+            raise ValueError("`detections_csv_path` and `event_id` must not be both None!")
         # Determine the data mode based on the provided paths.
         if not ap_path is None:   # If a path to binned light curve data is provided 'lwtime', 'uptime', 'exposure', 'counts'
             self.filemode = 2
@@ -62,6 +73,17 @@ class AGILE_BBlocks(BaseBBlocks):
             self.filemode = 5 #'lwtime', 'uptime', 'rate'
         else:
             raise ValueError("Other `datamode` different from 2 or 3 are not supported!")
+        
+        if detections_csv_path is not None:
+            # Load the detections data from the provided CSV file.
+            self.df_detections = pd.read_csv(detections_csv_path)
+            # Set the index of the DataFrame to be the flare_id.
+            self.df_detections.index = self.df_detections["flare_id"]
+            # Keep only the start and stop times (in MJD format).
+            self.df_detections = self.df_detections[["mjd_start", "mjd_stop"]]
+            # Convert the MJD times to TT time relative to the AGILE epoch.
+            #self.df_detections['mjd_start'] = self.df_detections['mjd_start'].apply(self.__mjd_to_tt)
+            #self.df_detections['mjd_stop'] = self.df_detections['mjd_stop'].apply(self.__mjd_to_tt)
         
         # Store the event ID.
         self.event_id = event_id
