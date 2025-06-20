@@ -96,7 +96,7 @@ class BaseBBlocks:
             self.resbblocks.plot_blocks(t_delta=False, y_err=yerr, edge_points=False, 
                                         data_cells=False, mean_blocks=False)
 
-    def bayesian_blocks(self, fitness='events', p0=None, gamma=None, useerror=False):
+    def bayesian_blocks(self, fitness='events', p0=None, gamma=None, useerror=False, plotBlocks=True):
         """
         Compute the Bayesian blocks using the given parameters and plot the result.
 
@@ -114,6 +114,8 @@ class BaseBBlocks:
         # Compute the Bayesian blocks with the given parameters and plot the result.
         sigma = self.sigma if useerror else None
         self.resbblocks = bayesian_blocks(self.t_c, self.x, sigma=sigma, fitness=fitness, input_data_cells=self.data_cells, rate=self.rate, p0=p0, gamma=gamma)
+        if not plotBlocks:
+            return None
         if self.datamode == 2:
             self.resbblocks.plot_blocks(t_delta=True, edge_points=True, data_cells=True, mean_blocks=True)
         elif self.datamode == 1:
