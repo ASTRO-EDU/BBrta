@@ -110,7 +110,7 @@ class AGILE_BBlocks(BaseBBlocks):
         # Convert in MJD
         df_in['lwtime_mjd'] = df_in['lwtime_tt'].apply(self.__tt_to_mjd)
         df_in['uptime_mjd'] = df_in['uptime_tt'].apply(self.__tt_to_mjd)
-        
+
         # Filter the data to only include rows within the event time range.
         if tstart_mjd is not None:
             df_in = df_in[df_in["lwtime_mjd"] >= tstart_mjd]
@@ -355,20 +355,18 @@ class AGILE_BBlocks(BaseBBlocks):
         """
         Read the input data according to a specified format, apply selection and eventual correction.
         
-        Allowed data formats:
-        - BINNED data: AGILE_AP, AGILE_MLE, CUSTOM_LC
-        - UNBINNED data: AGILE_PH 
-
         Parameters:
         -----------
         file_path : str
             The path to the data file. 
         file_mode : str, int or FileMode
-            FileMode to set read function and DataMode.
+            FileMode to set read function and DataMode. Allowed data formats:
+            - UNBINNED data: AGILE_PH (1)
+            - BINNED data: AGILE_AP (2), AGILE_MLE (3), CUSTOM_LC (4)
         tstart, tstop : float 
             Time start, stop in MJD to select events. If None, no selection is applied.
         ratecorrection: None or 0 or float
-            Multiplication factor to convert rates (cts/exp) into int used with AGILE_AP data.
+            Multiplication factor to convert rates (cts/exp) into integers.
             - Set to None to not use.
             - Set to 0 to use the mean exposure (effective area * dt), typical value 1e7.
             - Set to a float value to use it directly.
