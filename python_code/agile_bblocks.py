@@ -220,11 +220,7 @@ class AGILE_BBlocks(BaseBBlocks):
         rate_err = self.df_event['flux_err'].to_numpy()
         
         # Apply Flux Correction, set x and sigma
-        if ratecorrection is None:
-            print(f"Apply Bayesian Blocks on MLE FLUX with no scaling")
-            self.x = self.rate
-            self.sigma = rate_err
-        elif ratecorrection==-1:
+        if ratecorrection==-1 or ratecorrection is None:
             print(f"Apply Bayesian Blocks on CTS (integers)")
             self.x = self.cts
             self.sigma = np.sqrt(self.x)
@@ -260,8 +256,10 @@ class AGILE_BBlocks(BaseBBlocks):
         """
         print(f"Read input file {file_path}")
         # Load the binned light curve data from the file.
-        df_in = pd.read_csv(file_path, delim_whitespace=True, header=None)
-        df_in.columns = ['lwtime', 'uptime', 'rate']
+        df_in = pd.read_csv(file_path, delim_whitespace=True, header=None,
+                            names=['lwtime', 'uptime', 'rate'],
+                            dtype={'lwtime': float, 'uptime': float, 'rate': float},
+                            )
         
         # Filter the data to only include rows within the event time range.
         if tstart is not None:
@@ -294,20 +292,20 @@ class AGILE_BBlocks(BaseBBlocks):
         # Apply Flux Correction, set x
         if ratecorrection is None:
             print(f"Apply Bayesian Blocks on RATE with no scaling, assume no Error")
-            self.x = self.rate
+            self.x = self.rate.astype(int)
             self.sigma = np.zeros_like(self.x)
         elif ratecorrection == -1:
             print(f"Apply Bayesian Blocks on RATE with no scaling, assume Poisson Error")
-            self.x = self.x
+            self.x = self.rate.astype(int)
             self.sigma = np.sqrt(self.x)
         elif ratecorrection == 0:
             xmean = self.rate.mean() / 5.0
             print(f"Apply Bayesian Blocks on RATE scaled to integers with a factor={xmean:.3g}, assume Poisson Error")
-            self.x = (self.x / xmean).astype(int)
+            self.x = (self.rate / xmean).astype(int)
             self.sigma = np.sqrt(self.x)
         else:
             print(f"Apply Bayesian Blocks on RATE scaled to integers with a factor={ratecorrection:.3g}, assume Poisson Error")
-            self.x = (self.x * ratecorrection).astype(int)
+            self.x = (self.rate * ratecorrection).astype(int)
             self.sigma = np.sqrt(self.x)
         
         return None
@@ -337,7 +335,7 @@ class AGILE_BBlocks(BaseBBlocks):
         
         # Set self.df_event
         self.df_event = df_in
-        print(f"Number of photons selected: {len(self.df_event)}")
+        print(f"Number of photons selected: {len(self.df_event)}")        
         
         # Extract the relevant columns for Bayesian blocks processing.
         self.data_cells = None
