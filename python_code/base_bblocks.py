@@ -99,7 +99,16 @@ class BaseBBlocks:
         """
         # Compute the Bayesian blocks with the given parameters and plot the result.
         sigma = self.sigma if useerror else None
-        self.bblocks.bayesian_blocks(self.t_c, self.x, sigma=sigma, fitness=fitness, input_data_cells=self.data_cells, rate=self.rate, p0=p0, gamma=gamma)
+        
+        # Compute Bayesian Blocks
+        if fitness=="regular_events":
+            self.bblocks.bayesian_blocks(self.t_c, self.x, sigma=sigma, fitness=fitness, input_data_cells=self.data_cells, rate=self.rate, p0=p0, gamma=gamma, dt=self.dt)
+        elif fitness=="events" or fitness=="measures":
+            self.bblocks.bayesian_blocks(self.t_c, self.x, sigma=sigma, fitness=fitness, input_data_cells=self.data_cells, rate=self.rate, p0=p0, gamma=gamma)
+        else:
+            raise ValueError(f"Fitness must be \'events\', \'regular_events\' or \'measures\'")
+        
+        # Plot on request
         if not plotBlocks:
             return None
         if self.datamode == 2:
